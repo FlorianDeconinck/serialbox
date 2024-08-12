@@ -132,6 +132,16 @@ Examples:
 
 Note: Currently only 3d-fields adhering to the (i,j,k) indexing convention are supported.
 
+\subsection{\texttt{DATA\_IJKBUFF}}
+Serialize a data field within a 3-axis loop over the i & j & k indices. This directive has the same general syntax as \texttt{DATA} but the user is required to provide the current value of the 3 loops index (i\_value, j\_value, k\_value) and the extents (i\_size, j\_size, k\_size).
+
+Examples:
+\begin{lstlisting}
+!$ser data_ijkbuff i_value=i i_size=ie j_value=j j_size=je k_value=k k_size=ke pt=pt(:,:) pq=pq(:,:)
+\end{lstlisting}
+
+Note: Currently only 3d-fields adhering to the (i,j,k) indexing convention are supported.
+
 \subsection{\texttt{ACCDATA}}
 Serialize the data field located on the accelerator. Same options as DATA clause.
 OpenACC update host/device are generated before reading
