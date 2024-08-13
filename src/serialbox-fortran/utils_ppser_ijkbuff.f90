@@ -101,7 +101,7 @@ END SUBROUTINE init_ijkbuff
 !============================================================================
 
 ! finalize buffering: should be called once all buffers have been flushed
-SUBROUTINE finalize_ijijkbuff()
+SUBROUTINE finalize_ijkbuff()
   IMPLICIT NONE
 
   INTEGER :: idx
@@ -257,15 +257,16 @@ END SUBROUTINE fs_write_ijkbuff_3d_r4
 !============================================================================
 
 ! overloads fs_write_ijkbuff: version for i4 integers and 3d fields
-SUBROUTINE fs_write_ijkbuff_3d_i4(serializer, savepoint, fieldname, field, &
-                                        k, k_size, mode, minushalos, plushalos)
+SUBROUTINE fs_write_ijkbuff_3d_i4(serializer, savepoint, fieldname, scalar, &
+                                  i, i_size, j, j_size, k, k_size, &
+                                  mode, minushalos, plushalos)
   IMPLICIT NONE
 
   TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
-  INTEGER, INTENT(IN), TARGET             :: field(:,:)
-  INTEGER, INTENT(IN)                     :: k, k_size, mode
+  INTEGER, INTENT(IN)                     :: scalar
+  INTEGER, INTENT(IN)                     :: i, i_size, j, j_size, k, k_size, mode
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
 
   ! local vars
@@ -279,38 +280,38 @@ SUBROUTINE fs_write_ijkbuff_3d_i4(serializer, savepoint, fieldname, field, &
 
   ! find buffer_id and check if a buffers slot was found
   call setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type, &
-                    SIZE(field,1), SIZE(field,2), k_size, k, mode, minushalos, plushalos)
+                    i, i_size, j, j_size, k_size, k, mode, minushalos, plushalos)
 
   ! store data
   IF (debug) THEN
     WRITE(0,*) 'DEBUG fs_write_ijkbuff_3d_i4: store data'
   END IF
-  ijkbuff(buffer_id)%buff_3d_i4(:,:,k) = field(:,:)
-  ijkbuff(buffer_id)%ok(i,j,k) = .TRUE.
+  buffers(buffer_id)%buff_3d_i4(i,j,k) = scalar
+  buffers(buffer_id)%ok(i,j,k) = .TRUE.
 
   ! write if we are complete
-  IF (ALL(ijkbuff(buffer_id)%ok(:))) THEN
+  IF (ALL(buffers(buffer_id)%ok(:,:,:))) THEN
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_ijkbuff_3d_i4: flush data'
+      WRITE(0,*) 'DEBUG fs_write_buff_3d_i4ers: flush data'
     END IF
-    IF (ijkbuff(buffer_id)%has_minushalos) THEN
-      IF (ijkbuff(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, ijkbuff(buffer_id)%buff_3d_i4, &
-          minushalos=ijkbuff(buffer_id)%minushalos, plushalos=ijkbuff(buffer_id)%plushalos)
+    IF (buffers(buffer_id)%has_minushalos) THEN
+      IF (buffers(buffer_id)%has_plushalos) THEN
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buff_3d_i4, &
+          minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, ijkbuff(buffer_id)%buff_3d_i4, &
-          minushalos=ijkbuff(buffer_id)%minushalos)
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buff_3d_i4, &
+          minushalos=buffers(buffer_id)%minushalos)
       END IF
     ELSE
-      IF (ijkbuff(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, ijkbuff(buffer_id)%buff_3d_i4, &
-          plushalos=ijkbuff(buffer_id)%plushalos)
+      IF (buffers(buffer_id)%has_plushalos) THEN
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buff_3d_i4, &
+          plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, ijkbuff(buffer_id)%buff_3d_i4)
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buff_3d_i4)
       END IF
     END IF
 
-    CALL destroy_ijijkbuff(buffer_id)
+    CALL destroy_ijkbuff(buffer_id)
   END IF
 
 END SUBROUTINE fs_write_ijkbuff_3d_i4
@@ -328,9 +329,9 @@ SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type,
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
   INTEGER, INTENT(IN)                     :: i, i_size, j, j_size, k, k_size
-  INTEGER, INTENT(IN)                     :: mode, field_nx, field_ny, field_type
+  INTEGER, INTENT(IN)                     :: mode, field_type
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
-  INTEGER, INTENT(OUT)                    :: buff_id
+  INTEGER, INTENT(OUT)                    :: buffer_id
 
   ! local vars
   INTEGER :: call_index = 0
@@ -355,24 +356,24 @@ SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type,
   END IF
 
   ! find ID if it already exists
-  CALL find_ijkbuffer_id(fieldname, savepoint, i, j, k, buff_id, call_index)
+  CALL find_ijkbuffer_id(fieldname, savepoint, i, j, k, buffer_id, call_index)
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_ijkbuff_3d_r8: find buff_id=', buff_id
+    WRITE(0,*) 'DEBUG fs_write_ijkbuff_3d_r8: find buffer_id=', buffer_id
   END IF
 
   ! check if a buffers slot was found
-  IF ( buff_id == 0 ) THEN
+  IF ( buffer_id == 0 ) THEN
     ! no, so create a new buffers
-    CALL get_free_ijkbuffer_id(buff_id)
+    CALL get_free_ijkbuffer_id(buffer_id)
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_ijkbuff_3d: buff_id=', buff_id
+      WRITE(0,*) 'DEBUG fs_write_ijkbuff_3d: buffer_id=', buffer_id
     END IF
-    CALL create_ijkbuff(buff_id, serializer, savepoint, fieldname, field_type, &
+    CALL create_ijkbuff(buffer_id, serializer, savepoint, fieldname, field_type, &
                         i_size, j_size, k_size, call_index, minushalos, plushalos)
   ELSE
     ! yes, so check for consistency of current request with stored metadata
-    CALL check_ijkbuff(buff_id, serializer, savepoint, fieldname, field_type, &
-                       i_size, j_size, k_size, k, minushalos, plushalos)
+    CALL check_ijkbuff(buffer_id, serializer, savepoint, fieldname, field_type, &
+                       i_size, j_size, k_size, i, j, k, minushalos, plushalos)
   END IF
 
  END SUBROUTINE setup_buffer
@@ -447,10 +448,10 @@ SUBROUTINE create_ijkbuff(buff_id, serializer, savepoint, fieldname, field_type,
     CASE DEFAULT
       WRITE(0,*) 'ERROR in utils_ppser_ijkbuff: unsupported field_type encountered'
   END SELECT
-  ALLOCATE(buffers(buff_id)%ok(dim_k))
+  ALLOCATE(buffers(buff_id)%ok(dim_i, dim_j, dim_k))
 
-  ! make sure all k-levels are marked as unwritten
-  buffers(buff_id)%ok(:) = .FALSE.
+  ! make sure all grid points as unwritten
+  buffers(buff_id)%ok(:,:,:) = .FALSE.
 
 END SUBROUTINE create_ijkbuff
 
@@ -539,7 +540,8 @@ SUBROUTINE check_ijkbuff(buffer_id, serializer, savepoint, fieldname, field_type
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
   INTEGER, INTENT(IN)                     :: field_type
-  INTEGER, INTENT(IN)                     :: dim_i, dim_j, dim_k, k
+  INTEGER, INTENT(IN)                     :: dim_i, dim_j, dim_k
+  INTEGER, INTENT(IN)                     :: i, j, k
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
 
   ! debug information
@@ -690,7 +692,7 @@ SUBROUTINE get_free_ijkbuffer_id(buffer_id)
     STOP
   END IF
 
-END SUBROUTINE get_free_ijbuffer_id
+END SUBROUTINE get_free_ijkbuffer_id
 
 !============================================================================
 
