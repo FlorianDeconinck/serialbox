@@ -533,6 +533,8 @@ class PpSer:
 
     # IJKBUFF directive
     def __ser_ijkbuff(self, args, isacc=False):
+        """The IJK directives expect i,j,k and size of I, J, K to have 
+        been defined using the get/set provided by savepoint_helpers"""
 
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
@@ -549,27 +551,14 @@ class PpSer:
             if v not in self.intentin_to_remove:
                 self.intentin_to_remove.append(v)
             
-        d = dict(zip(keys, values))
-        i_value = d.pop('i')
-        i_size = d.pop('i_size')
-        j_value = d.pop('j')
-        j_size = d.pop('j_size')
-        k_value = d.pop('k')
-        k_size = d.pop('k_size')
-
         self.__calls.add(self.methods['getmode'])
         for key, value in zip(keys, values):
-            if (
-                (key != 'k') and (value != 'k_size') and
-                (key != 'i') and (value != 'i_size') and
-                (key != 'j') and (value != 'j_size')
-            ):
-              l += tab + '    ' + 'call ' + self.methods['dataijkbuff'] + \
-                  '(ppser_serializer, ppser_savepoint, \'' + key + '\', ' + value +  \
-                  ', i= ' + i_value + ', i_size= ' + i_size + \
-                  ', j= ' + j_value + ', j_size= ' + j_size + \
-                  ', k= ' + k_value + ', k_size= ' + k_size + \
-                  ', mode=' + self.methods['getmode'] +'())\n'
+            l += tab + '    ' + 'call ' + self.methods['dataijkbuff'] + \
+                f'(ppser_serializer, ppser_savepoint, {key}, {value}'  \
+                ', i=ser_i, i_size=ser_nx' \
+                ', j=ser_j, j_size=ser_ny' \
+                ', k=ser_k, k_size=ser_nz' \
+                ', mode=' + self.methods['getmode'] + '())\n'
 
         if if_statement:
             l += 'ENDIF\n'
@@ -898,6 +887,8 @@ class PpSer:
                 for s in calls_pp[:-1]:
                     self.__line += '  ' + s + ', &\n'
                 self.__line += '  ' + calls_pp[-1] + '\n'
+                self.__line += 'USE savepoint_helpers\n'
+                self.__line += 'USE utils_ppser_ijkbuff\n'
 
             if len(self.__extra_module) > 0:
                 for mod in self.__extra_module:

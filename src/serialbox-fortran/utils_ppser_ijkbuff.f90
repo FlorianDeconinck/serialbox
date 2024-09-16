@@ -185,7 +185,7 @@ SUBROUTINE fs_write_ijkbuff_3d_r8(serializer, savepoint, fieldname, scalar, &
       END IF
     END IF
 
-    CALL destroy_ijbuffer(buff_id)
+    CALL destroy_ijkbuff(buff_id)
   END IF
 
 END SUBROUTINE fs_write_ijkbuff_3d_r8
@@ -249,7 +249,7 @@ SUBROUTINE fs_write_ijkbuff_3d_r4(serializer, savepoint, fieldname, scalar, &
       END IF
     END IF
 
-    CALL destroy_ijbuffer(buff_id)
+    CALL destroy_ijkbuff(buff_id)
   END IF
 
 END SUBROUTINE fs_write_ijkbuff_3d_r4
