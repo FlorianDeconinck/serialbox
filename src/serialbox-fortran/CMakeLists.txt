@@ -18,7 +18,7 @@ if(SERIALBOX_ENABLE_FORTRAN)
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:include>
     )
-  set(SOURCES_FORTRAN utils_ppser.f90 utils_ppser_kbuff.f90 utils_ppser_ijkbuff.f90 savepoint_helpers.f90)
+  set(SOURCES_FORTRAN utils_ppser.f90 utils_ppser_kbuff.f90 utils_ppser_buffered.f90 savepoint_helpers.f90)
 
   if (SERIALBOX_ENABLE_FTG)
     set(SOURCES_FORTRAN ${SOURCES_FORTRAN} m_ser_ftg.f90 m_ser_ftg_cmp.f90)

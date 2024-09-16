@@ -102,7 +102,7 @@ class PpSer:
             'dataread':         'fs_read_field',
             'datareadperturb':  'fs_read_field',
             'datakbuff':        'fs_write_kbuff',
-            'dataijkbuff':      'fs_write_ijkbuff',
+            'databuffered':     'fs_write_buffered',
             'option':           'fs_Option',
             'serinfo':          'fs_add_serializer_metainfo',
             'register':         'fs_register_field',
@@ -120,7 +120,7 @@ class PpSer:
             'cleanup':         ['CLEANUP', 'CLE'],
             'data':            ['DATA', 'DAT'],
             'data_kbuff':      ['DATA_KBUFF', 'KBU'],
-            'data_ijkbuff':    ['DATA_IJKBUFF', 'IJKBU'],
+            'data_buffered':   ['DATA_BUFFERED', 'DATBUFF'],
             'accdata':         ['ACCDATA', 'ACC'],
             'mode':            ['MODE', 'MOD'],
             'init':            ['INIT', 'INI'],
@@ -531,10 +531,10 @@ class PpSer:
 
         self.__line = l
 
-    # IJKBUFF directive
-    def __ser_ijkbuff(self, args, isacc=False):
-        """The IJK directives expect i,j,k and size of I, J, K to have 
-        been defined using the get/set provided by savepoint_helpers"""
+    # DATA BUFFERED directive
+    def __ser_data_buffered(self, args, isacc=False):
+        """The directives expect up to 4 dimensions properly setup via
+        using the get/set provided by savepoint_helpers"""
 
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
@@ -553,11 +553,12 @@ class PpSer:
             
         self.__calls.add(self.methods['getmode'])
         for key, value in zip(keys, values):
-            l += tab + '    ' + 'call ' + self.methods['dataijkbuff'] + \
-                f'(ppser_serializer, ppser_savepoint, {key}, {value}'  \
-                ', i=ser_i, i_size=ser_nx' \
-                ', j=ser_j, j_size=ser_ny' \
-                ', k=ser_k, k_size=ser_nz' \
+            l += tab + '    ' + 'call ' + self.methods['databuffered'] + \
+                f'(ppser_serializer, ppser_savepoint, "{key}", {value}'  \
+                ', idx_d1=ser_idx_d1, D1=ser_D1' \
+                ', idx_d2=ser_idx_d2, D2=ser_D2' \
+                ', idx_d3=ser_idx_d3, D3=ser_D3' \
+                ', idx_d4=ser_idx_d4, D4=ser_D4' \
                 ', mode=' + self.methods['getmode'] + '())\n'
 
         if if_statement:
@@ -784,8 +785,8 @@ class PpSer:
                     self.__ser_data(args)
                 elif args[0].upper() in self.language['data_kbuff']:
                     self.__ser_kbuff(args)
-                elif args[0].upper() in self.language['data_ijkbuff']:
-                    self.__ser_ijkbuff(args)
+                elif args[0].upper() in self.language['data_buffered']:
+                    self.__ser_data_buffered(args)
                 elif args[0].upper() in self.language['tracer']:
                     self.__ser_tracer(args)
                 elif args[0].upper() in self.language['registertracers']:
@@ -888,7 +889,7 @@ class PpSer:
                     self.__line += '  ' + s + ', &\n'
                 self.__line += '  ' + calls_pp[-1] + '\n'
                 self.__line += 'USE savepoint_helpers\n'
-                self.__line += 'USE utils_ppser_ijkbuff\n'
+                self.__line += 'USE utils_ppser_buffered\n'
 
             if len(self.__extra_module) > 0:
                 for mod in self.__extra_module:
