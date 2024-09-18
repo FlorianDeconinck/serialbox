@@ -103,6 +103,7 @@ class PpSer:
             'datareadperturb':  'fs_read_field',
             'datakbuff':        'fs_write_kbuff',
             'databuffered':     'fs_write_buffered',
+            'flushsavepoint':   'fs_flush_savepoint',
             'option':           'fs_Option',
             'serinfo':          'fs_add_serializer_metainfo',
             'register':         'fs_register_field',
@@ -117,23 +118,24 @@ class PpSer:
 
         # language definition (also public)
         self.language = {
-            'cleanup':         ['CLEANUP', 'CLE'],
-            'data':            ['DATA', 'DAT'],
-            'data_kbuff':      ['DATA_KBUFF', 'KBU'],
-            'data_buffered':   ['DATA_BUFFERED', 'DATBUFF'],
-            'accdata':         ['ACCDATA', 'ACC'],
-            'mode':            ['MODE', 'MOD'],
-            'init':            ['INIT', 'INI'],
-            'option':          ['OPTION', 'OPT'],
-            'metainfo':        ['METAINFO'],
-            'verbatim':        ['VERBATIM', 'VER'],
-            'register':        ['REGISTER', 'REG'],
-            'registertracers': ['REGISTERTRACERS'],
-            'zero':            ['ZERO', 'ZER'],
-            'savepoint':       ['SAVEPOINT', 'SAV'],
-            'tracer':          ['TRACER', 'TRA'],
-            'on':              ['ON'],
-            'off':             ['OFF']
+            'cleanup':           ['CLEANUP', 'CLE'],
+            'data':              ['DATA', 'DAT'],
+            'data_kbuff':        ['DATA_KBUFF', 'KBU'],
+            'data_buffered':     ['DATA_BUFFERED', 'DATBUFF'],
+            'flush_savepoint':   ['FLUSH_SAVEPOINT', 'FLUSHSPT'],
+            'accdata':           ['ACCDATA', 'ACC'],
+            'mode':              ['MODE', 'MOD'],
+            'init':              ['INIT', 'INI'],
+            'option':            ['OPTION', 'OPT'],
+            'metainfo':          ['METAINFO'],
+            'verbatim':          ['VERBATIM', 'VER'],
+            'register':          ['REGISTER', 'REG'],
+            'registertracers':   ['REGISTERTRACERS'],
+            'zero':              ['ZERO', 'ZER'],
+            'savepoint':         ['SAVEPOINT', 'SAV'],
+            'tracer':            ['TRACER', 'TRA'],
+            'on':                ['ON'],
+            'off':               ['OFF']
         }
 
         # If you change any of these, please check equivalent parameters in
@@ -566,6 +568,42 @@ class PpSer:
 
         self.__line = l
 
+    # FLUSH_SAVEPOINT directive
+    def __ser_flush_savepoint(self, args, isacc=False):
+        (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
+
+        # extract save point name
+        if len(dirs) != 1:
+            self.__exit_error(directive=args[0],
+                              msg='Must specify a name and a list of key=value pairs')
+        name = dirs[0]
+
+        # generate serialization code        
+        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        tab = ''
+
+        if if_statement:
+            l += 'IF (' + if_statement + ') THEN\n'
+            tab = '  '
+
+        for v in values:
+            v = re.sub(r'\(.+\)', '', v)
+            if v not in self.intentin_to_remove:
+                self.intentin_to_remove.append(v)
+            
+        self.__calls.add(self.methods['getmode'])
+        self.__calls.add(self.methods['savepoint'])
+        l += f"{tab}    call {self.methods['savepoint']}"
+        l += f"('{name}', ppser_savepoint)\n"
+        l += f"{tab}    call {self.methods['flushsavepoint']}"
+        l += "(ppser_serializer, ppser_savepoint)\n"
+
+        if if_statement:
+            l += 'ENDIF\n'
+
+        self.__line = l
+
+
     # DATA directive
     def __ser_data(self, args, isacc=False):
 
@@ -787,6 +825,8 @@ class PpSer:
                     self.__ser_kbuff(args)
                 elif args[0].upper() in self.language['data_buffered']:
                     self.__ser_data_buffered(args)
+                elif args[0].upper() in self.language['flush_savepoint']:
+                    self.__ser_flush_savepoint(args)
                 elif args[0].upper() in self.language['tracer']:
                     self.__ser_tracer(args)
                 elif args[0].upper() in self.language['registertracers']:

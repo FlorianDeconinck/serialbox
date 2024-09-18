@@ -38,7 +38,7 @@ USE utils_ppser
 IMPLICIT NONE
 
 PUBLIC :: &
-  fs_write_buffered, finalize_buffered
+  fs_write_buffered, finalize_buffered, fs_flush_savepoint
 
 PRIVATE
 
@@ -47,7 +47,7 @@ PRIVATE
     TYPE(C_PTR) :: serializer                     ! serializer object associated with buffers
     CHARACTER(LEN=256) :: savepoint_name
     CHARACTER(LEN=256) :: fieldname
-    INTEGER :: D1 = 0, D2 = 0, D3 = 0, D4 = 0     ! dimensions of 3d-field to be serialized
+    INTEGER :: D1 = 1, D2 = 1, D3 = 1, D4 = 1     ! dimensions of 3d-field to be serialized
     INTEGER :: call_index = 0                     ! track multiple kbuffers for the same savepoint name 
                                                   ! and field being filled in parallel  
     LOGICAL :: has_minushalos, has_plushalos
@@ -59,7 +59,7 @@ PRIVATE
     LOGICAL, ALLOCATABLE :: ok(:,:,:,:)           ! has this index been written?
   END TYPE buffer_type
 
-  INTEGER, PARAMETER   :: max_buffer = 65535      ! increase in case you get errors
+  INTEGER, PARAMETER   :: max_buffer = 1000      ! increase in case you get errors
   TYPE(buffer_type) :: buffers(max_buffer)     ! array containing buffers
 
   ! overload interface for different types and dimensions
@@ -101,24 +101,48 @@ END SUBROUTINE init_buffered
 !============================================================================
 
 ! Flush all buffers, irrigardless or their write status
-SUBROUTINE flush_all_buffers()
+SUBROUTINE fs_flush_savepoint(serializer, savepoint)
   IMPLICIT NONE
 
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+
   INTEGER :: idx
+
   DO idx = 1, max_buffer
-    buffers(idx)%ok(:,:,:,:) = .TRUE.
 
-    ! SELECT CASE (field_type)
-    !   CASE(1)
-    !     ALLOCATE(buffers(buffer_id)%buffer_i4(D1, D2, D3, D4))
-    !   CASE(2)
-    !     ALLOCATE(buffers(buffer_id)%buffer_r4(D1, D2, D3, D4))
-    !   CASE(3)
-    !     ALLOCATE(buffers(buffer_id)%buffer_r8(D1, D2, D3, D4))
-    !   CASE DEFAULT
-    !     WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
-    ! END SELECT
+    IF (buffers(idx)%savepoint_name == savepoint%savepoint_name) THEN
 
+      ! Re-using the write interface:
+      ! we are going to re-write the first index, so that the function goes
+      ! through as usual, but fake that all other indices have been written
+      ! which will trigger the dump mechanism.
+      buffers(idx)%ok(:,:,:,:) = .TRUE.
+      buffers(idx)%ok(1,1,1,1) = .FALSE.
+      SELECT CASE (buffers(idx)%field_type)
+        CASE(1)
+          call fs_write_buffered( serializer, savepoint, buffers(idx)%fieldname, &
+                                  buffers(idx)%buffer_i4(1,1,1,1), &
+                                  1, buffers(idx)%D1, 1, buffers(idx)%D2, &
+                                  1, buffers(idx)%D3, 1, buffers(idx)%D4, &
+                                  PPSER_MODE_WRITE )
+        CASE(2)
+          call fs_write_buffered( serializer, savepoint, buffers(idx)%fieldname, &
+                                  buffers(idx)%buffer_r4(1,1,1,1), &
+                                  1, buffers(idx)%D1, 1, buffers(idx)%D2, &
+                                  1, buffers(idx)%D3, 1, buffers(idx)%D4, &
+                                  PPSER_MODE_WRITE )
+        CASE(3)
+          call fs_write_buffered( serializer, savepoint, buffers(idx)%fieldname, &
+                                  buffers(idx)%buffer_r8(1,1,1,1), &
+                                  1, buffers(idx)%D1, 1, buffers(idx)%D2, &
+                                  1, buffers(idx)%D3, 1, buffers(idx)%D4, &
+                                  PPSER_MODE_WRITE )
+        CASE DEFAULT
+          WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
+      END SELECT
+    
+    END IF
   END DO
 END SUBROUTINE
 
@@ -741,7 +765,7 @@ SUBROUTINE check_buffered(buffer_id, serializer, savepoint, fieldname, field_typ
     STOP
   END IF
   IF ((idx_d4 < 1) .OR. (idx_d4 > D4)) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: out of bound idx_d3-index encountered', idx_d4
+    WRITE(0,*) 'ERROR in utils_ppser_buffered: out of bound idx_d4-index encountered', idx_d4
     STOP
   END IF
   IF (buffers(buffer_id)%has_minushalos .AND. PRESENT(minushalos)) THEN
