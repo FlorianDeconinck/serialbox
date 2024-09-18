@@ -34,6 +34,7 @@ MODULE utils_ppser_buffered
 USE iso_c_binding
 USE m_serialize
 USE utils_ppser
+use, intrinsic :: ieee_arithmetic
       
 IMPLICIT NONE
 
@@ -567,6 +568,8 @@ SUBROUTINE create_buffered(buffer_id, serializer, savepoint, fieldname, field_ty
   INTEGER, INTENT(IN)                     :: D1, D2, D3, D4
   INTEGER, INTENT(IN)                     :: call_index
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
+  
+  REAL                                    :: a_nan
 
   ! debug information
   IF (debug) THEN
@@ -615,10 +618,13 @@ SUBROUTINE create_buffered(buffer_id, serializer, savepoint, fieldname, field_ty
   SELECT CASE (field_type)
     CASE(1)
       ALLOCATE(buffers(buffer_id)%buffer_i4(D1, D2, D3, D4))
+      buffers(buffer_id)%buffer_i4(:,:,:,:) = ieee_value( a_nan, ieee_quiet_nan )
     CASE(2)
       ALLOCATE(buffers(buffer_id)%buffer_r4(D1, D2, D3, D4))
+      buffers(buffer_id)%buffer_r4(:,:,:,:) = ieee_value( a_nan, ieee_quiet_nan )
     CASE(3)
       ALLOCATE(buffers(buffer_id)%buffer_r8(D1, D2, D3, D4))
+      buffers(buffer_id)%buffer_r8(:,:,:,:) = ieee_value( a_nan, ieee_quiet_nan )
     CASE DEFAULT
       WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
   END SELECT
