@@ -12,6 +12,13 @@ module savepoint_helpers
     integer :: ser_D3 = 1
     integer :: ser_D4 = 1
     contains
+    subroutine ser_set_indices(idx_d1, idx_d2, idx_d3, idx_d4)
+      integer, intent(in):: idx_d1, idx_d2, idx_d3, idx_d4
+      ser_idx_d1 = idx_d1
+      ser_idx_d2 = idx_d2
+      ser_idx_d3 = idx_d3
+      ser_idx_d4 = idx_d4
+    end subroutine
     subroutine ser_set_idx_d1(in_idx_d1)
       integer, intent(in):: in_idx_d1
       ser_idx_d1 = in_idx_d1
@@ -29,6 +36,13 @@ module savepoint_helpers
       ser_idx_d4 = in_idx_d4
     end subroutine ser_set_idx_d4
     
+    subroutine ser_set_Dx(d1, d2, d3, d4)
+      integer, intent(in):: d1, d2, d3, d4
+      ser_D1 = d1
+      ser_D2 = d2
+      ser_D3 = d3
+      ser_D4 = d4
+    end subroutine
     subroutine ser_set_D1(in_D1)
       integer, intent(in):: in_D1
       ser_D1 = in_D1

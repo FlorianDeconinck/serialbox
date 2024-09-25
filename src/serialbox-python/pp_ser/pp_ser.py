@@ -554,9 +554,13 @@ class PpSer:
                 self.intentin_to_remove.append(v)
             
         self.__calls.add(self.methods['getmode'])
+        nDims = 0
         for key, value in zip(keys, values):
+            if key == "Dx":
+                nDims = value
+                continue
             l += tab + '    ' + 'call ' + self.methods['databuffered'] + \
-                f'(ppser_serializer, ppser_savepoint, "{key}", {value}'  \
+                f'(ppser_serializer, ppser_savepoint, nDims={nDims}, "{key}", {value}'  \
                 ', idx_d1=ser_idx_d1, D1=ser_D1' \
                 ', idx_d2=ser_idx_d2, D2=ser_D2' \
                 ', idx_d3=ser_idx_d3, D3=ser_D3' \
