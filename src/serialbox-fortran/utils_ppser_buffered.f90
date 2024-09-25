@@ -128,19 +128,19 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
       buffers(idx)%ok(1,1,1,1) = .FALSE.
       SELECT CASE (buffers(idx)%field_type)
         CASE(1)
-          call fs_write_buffered_i4( serializer, savepoint, buffers(idx)%fieldname, nDims, &
+          call fs_write_buffered_i4( serializer, savepoint, nDims, buffers(idx)%fieldname, &
                                   buffers(idx)%buffer_i4(1,1,1,1), &
                                   idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
                                   idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
                                   PPSER_MODE_WRITE )
         CASE(2)
-          call fs_write_buffered( serializer, savepoint, buffers(idx)%fieldname, nDims, &
+          call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
                                   buffers(idx)%buffer_r4(1,1,1,1), &
                                   idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
                                   idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
                                   PPSER_MODE_WRITE )
         CASE(3)
-          call fs_write_buffered( serializer, savepoint, buffers(idx)%fieldname, nDims, &
+          call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
                                   buffers(idx)%buffer_r8(1,1,1,1), &
                                   idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
                                   idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
@@ -184,7 +184,7 @@ END SUBROUTINE finalize_buffered
 !============================================================================
 
 ! overloads fs_write_buffered: version for r8 floats and 3d fields
-SUBROUTINE fs_write_buffered_r8(serializer, savepoint, fieldname, nDims, scalar, &
+SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar, &
                                 idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
                                 mode, minushalos, plushalos)
   IMPLICIT NONE
@@ -193,13 +193,14 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, fieldname, nDims, scalar,
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
   REAL(KIND=C_DOUBLE), INTENT(IN), TARGET :: scalar
-  INTEGER, INTENT(INOUT)                  :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
+  INTEGER, INTENT(IN)                     :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
   INTEGER, INTENT(IN)                     :: mode, nDims
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
 
   ! local vars
   INTEGER :: buffer_id = 0
   INTEGER :: field_type = 3
+  INTEGER :: i1, i2, i3, i4, n1, n2, n3, n4
 
   ! do nothing in case serialization is switched off
   IF (.NOT. (fs_is_serialization_on())) THEN
@@ -208,27 +209,27 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, fieldname, nDims, scalar,
 
   ! Override dimensionality based on nDims
   IF (nDims == 1) THEN
-    D2 = 1
-    D3 = 1
-    D4 = 1
-    idx_d2 = 1
-    idx_d3 = 1
-    idx_d4 = 1
+    n2 = 1
+    n3 = 1
+    n4 = 1
+    n2 = 1
+    n3 = 1
+    n4 = 1
   ELSE IF (nDims == 2) THEN
-    D3 = 1
-    D4 = 1
-    idx_d3 = 1
-    idx_d4 = 1
+    i3 = 1
+    i4 = 1
+    n3 = 1
+    n4 = 1
   ELSE IF (nDims == 3) THEN
-    D4 = 1
-    idx_d4 = 1
+    i4 = 1
+    n4 = 1
   ELSE IF (nDims > 4) THEN
     WRITE(0,*) 'Serilabox error: cannot setup more than 4D'
   END IF
 
   ! find buffer_id and check if a buffers slot was found
   call setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type, &
-    idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
+    i1, n1, i2, n2, i3, n3, i4, n4, &
     mode, minushalos, plushalos)
 
   ! store data
@@ -236,8 +237,8 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, fieldname, nDims, scalar,
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
 
-  buffers(buffer_id)%buffer_r8(idx_d1,idx_d2,idx_d3,idx_d4) = scalar
-  buffers(buffer_id)%ok(idx_d1,idx_d2,idx_d3,idx_d4) = .TRUE.
+  buffers(buffer_id)%buffer_r8(i1,i2,i3,i4) = scalar
+  buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
@@ -246,18 +247,18 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, fieldname, nDims, scalar,
     END IF
     IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:n1,1:n2,1:n3,1:n4), &
           minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:n1,1:n2,1:n3,1:n4), &
           minushalos=buffers(buffer_id)%minushalos)
       END IF
     ELSE
       IF (buffers(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:n1,1:n2,1:n3,1:n4), &
           plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:D1,1:D2,1:D3,1:D4))
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1:n1,1:n2,1:n3,1:n4))
       END IF
     END IF
 
@@ -269,7 +270,7 @@ END SUBROUTINE fs_write_buffered_r8
 !============================================================================
 
 ! overloads fs_write_buffered: version for r4 floats and 3d fields
-SUBROUTINE fs_write_buffered_r4(serializer, savepoint, fieldname, nDims, scalar, &
+SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar, &
                                   idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
                                   mode, minushalos, plushalos)
   IMPLICIT NONE
@@ -278,13 +279,14 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, fieldname, nDims, scalar,
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
   REAL(KIND=C_FLOAT), INTENT(IN), TARGET  :: scalar
-  INTEGER, INTENT(INOUT)                  :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
+  INTEGER, INTENT(IN)                     :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
   INTEGER, INTENT(IN)                     :: mode, nDims
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
 
   ! local vars
   INTEGER :: buffer_id = 0
-  INTEGER :: field_type = 2
+  INTEGER :: field_type = 3
+  INTEGER :: i1, i2, i3, i4, n1, n2, n3, n4
 
   ! do nothing in case serialization is switched off
   IF (.NOT. (fs_is_serialization_on())) THEN
@@ -293,27 +295,27 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, fieldname, nDims, scalar,
 
   ! Override dimensionality based on nDims
   IF (nDims == 1) THEN
-    D2 = 1
-    D3 = 1
-    D4 = 1
-    idx_d2 = 1
-    idx_d3 = 1
-    idx_d4 = 1
+    n2 = 1
+    n3 = 1
+    n4 = 1
+    n2 = 1
+    n3 = 1
+    n4 = 1
   ELSE IF (nDims == 2) THEN
-    D3 = 1
-    D4 = 1
-    idx_d3 = 1
-    idx_d4 = 1
+    i3 = 1
+    i4 = 1
+    n3 = 1
+    n4 = 1
   ELSE IF (nDims == 3) THEN
-    D4 = 1
-    idx_d4 = 1
+    i4 = 1
+    n4 = 1
   ELSE IF (nDims > 4) THEN
     WRITE(0,*) 'Serilabox error: cannot setup more than 4D'
   END IF
 
   ! find buffer_id and check if a buffers slot was found
   call setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type, &
-    idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
+    i1, n1, i2, n2, i3, n3, i4, n4, &
     mode, minushalos, plushalos)
 
   ! store data
@@ -321,8 +323,8 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, fieldname, nDims, scalar,
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
 
-  buffers(buffer_id)%buffer_r4(idx_d1,idx_d2,idx_d3,idx_d4) = scalar
-  buffers(buffer_id)%ok(idx_d1,idx_d2,idx_d3,idx_d4) = .TRUE.
+  buffers(buffer_id)%buffer_r4(i1,i2,i3,i4) = scalar
+  buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
@@ -331,18 +333,18 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, fieldname, nDims, scalar,
     END IF
     IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:n1,1:n2,1:n3,1:n4), &
           minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:n1,1:n2,1:n3,1:n4), &
           minushalos=buffers(buffer_id)%minushalos)
       END IF
     ELSE
       IF (buffers(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:n1,1:n2,1:n3,1:n4), &
           plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:D1,1:D2,1:D3,1:D4))
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1:n1,1:n2,1:n3,1:n4))
       END IF
     END IF
 
@@ -354,7 +356,7 @@ END SUBROUTINE fs_write_buffered_r4
 !============================================================================
 
 ! overloads fs_write_buffered: version for i4 integers and 3d fields
-SUBROUTINE fs_write_buffered_i4(serializer, savepoint, fieldname, nDims, scalar, &
+SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar, &
                                   idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
                                   mode, minushalos, plushalos)
   IMPLICIT NONE
@@ -362,14 +364,15 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, fieldname, nDims, scalar,
   TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
-  INTEGER, INTENT(IN)                     :: scalar
-  INTEGER, INTENT(INOUT)                  :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
+  INTEGER, INTENT(IN), TARGET             :: scalar
+  INTEGER, INTENT(IN)                     :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
   INTEGER, INTENT(IN)                     :: mode, nDims
   INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
 
   ! local vars
   INTEGER :: buffer_id = 0
-  INTEGER :: field_type = 1
+  INTEGER :: field_type = 3
+  INTEGER :: i1, i2, i3, i4, n1, n2, n3, n4
 
   ! do nothing in case serialization is switched off
   IF (.NOT. (fs_is_serialization_on())) THEN
@@ -378,27 +381,27 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, fieldname, nDims, scalar,
 
   ! Override dimensionality based on nDims
   IF (nDims == 1) THEN
-    D2 = 1
-    D3 = 1
-    D4 = 1
-    idx_d2 = 1
-    idx_d3 = 1
-    idx_d4 = 1
+    n2 = 1
+    n3 = 1
+    n4 = 1
+    n2 = 1
+    n3 = 1
+    n4 = 1
   ELSE IF (nDims == 2) THEN
-    D3 = 1
-    D4 = 1
-    idx_d3 = 1
-    idx_d4 = 1
+    i3 = 1
+    i4 = 1
+    n3 = 1
+    n4 = 1
   ELSE IF (nDims == 3) THEN
-    D4 = 1
-    idx_d4 = 1
+    i4 = 1
+    n4 = 1
   ELSE IF (nDims > 4) THEN
     WRITE(0,*) 'Serilabox error: cannot setup more than 4D'
   END IF
 
   ! find buffer_id and check if a buffers slot was found
   call setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type, &
-    idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
+    i1, n1, i2, n2, i3, n3, i4, n4, &
     mode, minushalos, plushalos)
 
   ! store data
@@ -406,8 +409,8 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, fieldname, nDims, scalar,
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
 
-  buffers(buffer_id)%buffer_i4(idx_d1,idx_d2,idx_d3,idx_d4) = scalar
-  buffers(buffer_id)%ok(idx_d1,idx_d2,idx_d3,idx_d4) = .TRUE.
+  buffers(buffer_id)%buffer_i4(i1,i2,i3,i4) = scalar
+  buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
@@ -416,18 +419,18 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, fieldname, nDims, scalar,
     END IF
     IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:n1,1:n2,1:n3,1:n4), &
           minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:n1,1:n2,1:n3,1:n4), &
           minushalos=buffers(buffer_id)%minushalos)
       END IF
     ELSE
       IF (buffers(buffer_id)%has_plushalos) THEN
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:D1,1:D2,1:D3,1:D4), &
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:n1,1:n2,1:n3,1:n4), &
           plushalos=buffers(buffer_id)%plushalos)
       ELSE
-        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:D1,1:D2,1:D3,1:D4))
+        CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1:n1,1:n2,1:n3,1:n4))
       END IF
     END IF
 
