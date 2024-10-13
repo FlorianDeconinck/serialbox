@@ -120,6 +120,7 @@ class PpSer:
         self.language = {
             'cleanup':           ['CLEANUP', 'CLE'],
             'data':              ['DATA', 'DAT'],
+            'data_writeonly':    ['DATA_WRITEONLY', 'DATWO'],
             'data_kbuff':        ['DATA_KBUFF', 'KBU'],
             'data_buffered':     ['DATA_BUFFERED', 'DATBUFF'],
             'flush_savepoint':   ['FLUSH_SAVEPOINT', 'FLUSHSPT'],
@@ -679,6 +680,39 @@ class PpSer:
 
         self.__line = l
 
+    # DATA directive
+    def __ser_data_writeonly(self, args):
+
+        (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
+
+        # generate serialization code
+        self.__calls.add(self.methods['datawrite'])
+        self.__calls.add(self.methods['getmode'])
+
+        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        tab = ''
+
+        if if_statement:
+            l += 'IF (' + if_statement + ') THEN\n'
+            tab = '  '
+
+        for v in values:
+            v = re.sub(r'\(.+\)', '', v)
+            if v not in self.intentin_to_remove:
+                self.intentin_to_remove.append(v)
+
+        l += tab + 'SELECT CASE ( ' + self.methods['getmode'] + '() )\n'
+        l += tab + '  ' + 'CASE(' + str(self.modes['write']) + ')\n'
+        for k, v in zip(keys, values):
+            l += tab + '    ' + 'call ' + self.methods['datawrite'] + \
+                '(ppser_serializer, ppser_savepoint, \'' + k + '\', ' + v + ')\n'
+        l += tab + 'END SELECT\n'
+
+        if if_statement:
+            l += 'ENDIF\n'
+
+        self.__line = l
+
     # TRACER directive
     def __ser_tracer(self, args):
 
@@ -825,6 +859,8 @@ class PpSer:
                     self.__ser_data(args, True)
                 elif args[0].upper() in self.language['data']:
                     self.__ser_data(args)
+                elif args[0].upper() in self.language['data_writeonly']:
+                    self.__ser_data_writeonly(args)
                 elif args[0].upper() in self.language['data_kbuff']:
                     self.__ser_kbuff(args)
                 elif args[0].upper() in self.language['data_buffered']:
