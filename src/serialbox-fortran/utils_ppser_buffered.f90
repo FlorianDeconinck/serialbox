@@ -39,9 +39,12 @@ use, intrinsic :: ieee_arithmetic
 IMPLICIT NONE
 
 PUBLIC :: &
-  fs_write_buffered, finalize_buffered, fs_flush_savepoint
+  fs_write_buffered, finalize_buffered, fs_flush_savepoint, fs_write_scalar
 
 PRIVATE
+
+  INTEGER, PARAMETER :: i12 = selected_int_kind(12)
+  INTEGER, PARAMETER :: MAX_BUFFER_SIZE = 100000 !i32
 
   TYPE buffer_type
     LOGICAL :: in_use = .FALSE.                   ! is this buffers in use?
@@ -58,6 +61,7 @@ PRIVATE
     REAL(KIND=C_FLOAT), ALLOCATABLE :: buffer_r4(:,:,:,:)
     REAL(KIND=C_DOUBLE), ALLOCATABLE :: buffer_r8(:,:,:,:)
     LOGICAL, ALLOCATABLE :: ok(:,:,:,:)           ! has this index been written?
+    INTEGER :: next_available_index = 1
   END TYPE buffer_type
 
   INTEGER, PARAMETER   :: max_buffer = 1000      ! increase in case you get errors
@@ -68,6 +72,10 @@ PRIVATE
       MODULE PROCEDURE fs_write_buffered_i4
       MODULE PROCEDURE fs_write_buffered_r4
       MODULE PROCEDURE fs_write_buffered_r8
+  END INTERFACE
+
+  INTERFACE fs_write_scalar
+      MODULE PROCEDURE fs_write_scalar_r4
   END INTERFACE
 
   LOGICAL :: first_call = .TRUE.                  ! used for initialization
@@ -126,29 +134,52 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
       ! which will trigger the dump mechanism.
       buffers(idx)%ok(:,:,:,:) = .TRUE.
       buffers(idx)%ok(1,1,1,1) = .FALSE.
-      SELECT CASE (buffers(idx)%field_type)
-        CASE(1)
-          call fs_write_buffered_i4( serializer, savepoint, nDims, buffers(idx)%fieldname, &
-                                  buffers(idx)%buffer_i4(1,1,1,1), &
-                                  idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
-                                  idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
-                                  PPSER_MODE_WRITE )
-        CASE(2)
-          call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
-                                  buffers(idx)%buffer_r4(1,1,1,1), &
-                                  idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
-                                  idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
-                                  PPSER_MODE_WRITE )
-        CASE(3)
-          call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
-                                  buffers(idx)%buffer_r8(1,1,1,1), &
-                                  idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
-                                  idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
-                                  PPSER_MODE_WRITE )
-        CASE DEFAULT
-          WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
-      END SELECT
-    
+
+      IF (buffers(idx)%next_available_index .gt. 1) THEN
+        buffers(idx)%ok(1,1,1,1) = .TRUE.
+        SELECT CASE (buffers(idx)%field_type)
+          ! CASE(1)
+          ! call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+          !                         buffers(idx)%buffer_i4(1,1,1,1), &
+          !                         idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
+          !                         idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
+          !                         PPSER_MODE_WRITE )
+          CASE(2)
+            CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
+                                buffers(idx)%buffer_r4(:buffers(idx)%next_available_index,1,1,1))
+          ! CASE(3)
+          !   call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+          !                           buffers(idx)%buffer_r8(1,1,1,1), &
+          !                           idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
+          !                           idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
+          !                           PPSER_MODE_WRITE )
+          CASE DEFAULT
+            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
+        END SELECT
+      ELSE
+        SELECT CASE (buffers(idx)%field_type)
+          CASE(1)
+            call fs_write_buffered_i4( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+                                    buffers(idx)%buffer_i4(1,1,1,1), &
+                                    idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
+                                    idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
+                                    PPSER_MODE_WRITE )
+          CASE(2)
+            call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+                                    buffers(idx)%buffer_r4(1,1,1,1), &
+                                    idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
+                                    idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
+                                    PPSER_MODE_WRITE )
+          CASE(3)
+            call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+                                    buffers(idx)%buffer_r8(1,1,1,1), &
+                                    idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
+                                    idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
+                                    PPSER_MODE_WRITE )
+          CASE DEFAULT
+            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
+        END SELECT
+      END IF
     END IF
   END DO
 END SUBROUTINE
@@ -298,6 +329,46 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
   END IF
 
 END SUBROUTINE fs_write_buffered_r8
+
+
+SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
+  IMPLICIT NONE
+
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  REAL(KIND=C_FLOAT), INTENT(IN), TARGET  :: scalar
+
+  ! local vars
+  INTEGER :: buffer_id = 0
+  INTEGER :: field_type = 2
+
+  ! do nothing in case serialization is switched off
+  IF (.NOT. (fs_is_serialization_on())) THEN
+    RETURN
+  ENDIF
+
+  ! find buffer_id and check if a buffers slot was found
+  call setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, field_type)
+
+  buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
+  
+  ! store data
+  IF (debug) THEN
+    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+  END IF
+
+  buffers(buffer_id)%buffer_r4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
+  buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
+
+  ! write if we are complete
+  IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
+    WRITE(0,*) 'fs_write'
+    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:buffers(buffer_id)%next_available_index,1,1,1))
+    CALL destroy_buffered(buffer_id)
+  END IF
+
+END SUBROUTINE fs_write_scalar_r4
 
 !============================================================================
 
@@ -596,6 +667,38 @@ SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type,
 
 END SUBROUTINE setup_buffer
 
+SUBROUTINE setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, field_type)
+  IMPLICIT NONE
+
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  INTEGER, INTENT(IN)                     :: field_type
+  INTEGER, INTENT(OUT)                    :: buffer_id
+
+  ! initialize if this is the first call
+  IF ( first_call ) THEN
+    CALL init_buffered()
+  END IF
+
+  ! find ID if it already exists
+  CALL find_buffered_by_name(fieldname, savepoint, buffer_id)
+  IF (debug) THEN
+    WRITE(0,*) 'DEBUG fs_write_buffered_r8: find buffer_id=', buffer_id
+  END IF
+
+  ! check if a buffers slot was found
+  IF ( buffer_id == 0 ) THEN
+    ! no, so create a new buffers
+    CALL get_free_buffered_id(buffer_id)
+    IF (debug) THEN
+      WRITE(0,*) 'DEBUG fs_write_buffered: buffer_id=', buffer_id
+    END IF
+    CALL create_buffered(buffer_id, serializer, savepoint, fieldname, field_type, MAX_BUFFER_SIZE, 1, 1, 1, 0)
+  END IF
+
+END SUBROUTINE setup_buffer_scalar
+
 !============================================================================
 
 
@@ -844,6 +947,29 @@ END SUBROUTINE check_buffered
 
 !============================================================================
 
+SUBROUTINE find_buffered_by_name(fieldname, savepoint, buffer_id)
+
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  INTEGER, INTENT(OUT)                    :: buffer_id
+
+  ! local vars
+  INTEGER :: idx
+
+  buffer_id = 0
+
+  DO idx = 1, max_buffer
+    IF (buffers(idx)%in_use) THEN 
+      IF (TRIM(fieldname) == TRIM(buffers(idx)%fieldname)) THEN
+        IF (TRIM( savepoint%savepoint_name) == TRIM(buffers(idx)%savepoint_name)) THEN
+            buffer_id = idx
+            EXIT
+        END IF     
+      END IF
+    END IF
+  END DO
+
+END SUBROUTINE
 
 ! find the ID of a buffers given name of field and savepoint
 SUBROUTINE find_buffered_id(fieldname, savepoint, idx_d1, idx_d2, idx_d3, idx_d4, buffer_id, call_index)

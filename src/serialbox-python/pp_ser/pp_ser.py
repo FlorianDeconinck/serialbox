@@ -103,6 +103,7 @@ class PpSer:
             'datareadperturb':  'fs_read_field',
             'datakbuff':        'fs_write_kbuff',
             'databuffered':     'fs_write_buffered',
+            'dataappend':       'fs_write_scalar',
             'flushsavepoint':   'fs_flush_savepoint',
             'option':           'fs_Option',
             'serinfo':          'fs_add_serializer_metainfo',
@@ -123,6 +124,7 @@ class PpSer:
             'data_writeonly':    ['DATA_WRITEONLY', 'DATWO'],
             'data_kbuff':        ['DATA_KBUFF', 'KBU'],
             'data_buffered':     ['DATA_BUFFERED', 'DATBUFF'],
+            'data_append':       ['DATA_APPEND', 'DATAPP'],
             'flush_savepoint':   ['FLUSH_SAVEPOINT', 'FLUSHSPT'],
             'accdata':           ['ACCDATA', 'ACC'],
             'mode':              ['MODE', 'MOD'],
@@ -573,6 +575,36 @@ class PpSer:
 
         self.__line = l
 
+    # DATA APPEND directive
+    def __ser_data_append(self, args, isacc=False):
+        """The directives expect up to 4 dimensions properly setup via
+        using the get/set provided by savepoint_helpers"""
+
+        (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
+
+        line = ''
+        tab = ''
+
+        # generate serialization code
+        if if_statement:
+            line += 'IF (' + if_statement + ') THEN\n'
+            tab = '  '
+
+        for v in values:
+            v = re.sub(r'\(.+\)', '', v)
+            if v not in self.intentin_to_remove:
+                self.intentin_to_remove.append(v)
+
+        # self.__calls.add(self.methods['dataappend'])
+        for key, value in zip(keys, values):
+            line += tab + '    ' + 'call ' + self.methods['dataappend'] + \
+                f'(ppser_serializer, ppser_savepoint, "{key}", {value})\n'
+
+        if if_statement:
+            line += 'ENDIF\n'
+
+        self.__line = line
+
     # FLUSH_SAVEPOINT directive
     def __ser_flush_savepoint(self, args, isacc=False):
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
@@ -865,6 +897,8 @@ class PpSer:
                     self.__ser_kbuff(args)
                 elif args[0].upper() in self.language['data_buffered']:
                     self.__ser_data_buffered(args)
+                elif args[0].upper() in self.language['data_append']:
+                    self.__ser_data_append(args)
                 elif args[0].upper() in self.language['flush_savepoint']:
                     self.__ser_flush_savepoint(args)
                 elif args[0].upper() in self.language['tracer']:
