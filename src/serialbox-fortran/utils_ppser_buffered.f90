@@ -350,16 +350,15 @@ SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
 
   ! find buffer_id and check if a buffers slot was found
   call setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, field_type)
-
-  buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
   
   ! store data
   IF (debug) THEN
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
-
+  
   buffers(buffer_id)%buffer_r4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
   buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
+  buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
