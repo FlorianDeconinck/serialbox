@@ -44,7 +44,7 @@ PUBLIC :: &
 PRIVATE
 
   INTEGER, PARAMETER :: i12 = selected_int_kind(12)
-  INTEGER, PARAMETER :: MAX_BUFFER_SIZE = 100000 !i32
+  INTEGER, PARAMETER :: MAX_BUFFER_SIZE = 250000 !i32
 
   TYPE buffer_type
     LOGICAL :: in_use = .FALSE.                   ! is this buffers in use?
@@ -363,7 +363,7 @@ SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
     WRITE(0,*) 'fs_write'
-    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:buffers(buffer_id)%next_available_index,1,1,1))
+    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:buffers(buffer_id)%next_available_index-1,1,1,1))
     CALL destroy_buffered(buffer_id)
   END IF
 
