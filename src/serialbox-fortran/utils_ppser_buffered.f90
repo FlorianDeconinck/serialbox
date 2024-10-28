@@ -69,13 +69,15 @@ PRIVATE
 
   ! overload interface for different types and dimensions
   INTERFACE fs_write_buffered
-      MODULE PROCEDURE fs_write_buffered_i4
-      MODULE PROCEDURE fs_write_buffered_r4
-      MODULE PROCEDURE fs_write_buffered_r8
+    MODULE PROCEDURE fs_write_buffered_i4
+    MODULE PROCEDURE fs_write_buffered_r4
+    MODULE PROCEDURE fs_write_buffered_r8
   END INTERFACE
 
   INTERFACE fs_write_scalar
-      MODULE PROCEDURE fs_write_scalar_r4
+    MODULE PROCEDURE fs_write_scalar_i4
+    MODULE PROCEDURE fs_write_scalar_r4
+    MODULE PROCEDURE fs_write_scalar_r8
   END INTERFACE
 
   LOGICAL :: first_call = .TRUE.                  ! used for initialization
@@ -331,17 +333,17 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
 END SUBROUTINE fs_write_buffered_r8
 
 
-SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
+SUBROUTINE fs_write_scalar_r8(serializer, savepoint, fieldname, scalar)
   IMPLICIT NONE
 
   TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
   TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
   CHARACTER(LEN=*), INTENT(IN)            :: fieldname
-  REAL(KIND=C_FLOAT), INTENT(IN), TARGET  :: scalar
+  REAL(KIND=C_DOUBLE), INTENT(IN), TARGET :: scalar
 
   ! local vars
   INTEGER :: buffer_id = 0
-  INTEGER :: field_type = 2
+  INTEGER :: field_type = 3
 
   ! do nothing in case serialization is switched off
   IF (.NOT. (fs_is_serialization_on())) THEN
@@ -356,18 +358,18 @@ SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
   
-  buffers(buffer_id)%buffer_r4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
+  buffers(buffer_id)%buffer_r8(buffers(buffer_id)%next_available_index,1,1,1) = scalar
   buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
   buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
     WRITE(0,*) 'fs_write'
-    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:buffers(buffer_id)%next_available_index-1,1,1,1))
+    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(:buffers(buffer_id)%next_available_index-1,1,1,1))
     CALL destroy_buffered(buffer_id)
   END IF
 
-END SUBROUTINE fs_write_scalar_r4
+END SUBROUTINE fs_write_scalar_r8
 
 !============================================================================
 
@@ -486,6 +488,45 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar,
 
 END SUBROUTINE fs_write_buffered_r4
 
+
+SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
+  IMPLICIT NONE
+
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  REAL(KIND=C_FLOAT), INTENT(IN), TARGET  :: scalar
+
+  ! local vars
+  INTEGER :: buffer_id = 0
+  INTEGER :: field_type = 2
+
+  ! do nothing in case serialization is switched off
+  IF (.NOT. (fs_is_serialization_on())) THEN
+    RETURN
+  ENDIF
+
+  ! find buffer_id and check if a buffers slot was found
+  call setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, field_type)
+  
+  ! store data
+  IF (debug) THEN
+    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+  END IF
+  
+  buffers(buffer_id)%buffer_r4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
+  buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
+  buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
+
+  ! write if we are complete
+  IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
+    WRITE(0,*) 'fs_write'
+    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:buffers(buffer_id)%next_available_index-1,1,1,1))
+    CALL destroy_buffered(buffer_id)
+  END IF
+
+END SUBROUTINE fs_write_scalar_r4
+
 !============================================================================
 
 ! overloads fs_write_buffered: version for i4 integers and 3d fields
@@ -602,6 +643,44 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar,
   END IF
 
 END SUBROUTINE fs_write_buffered_i4
+
+SUBROUTINE fs_write_scalar_i4(serializer, savepoint, fieldname, scalar)
+  IMPLICIT NONE
+
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  INTEGER, INTENT(IN), TARGET             :: scalar
+
+  ! local vars
+  INTEGER :: buffer_id = 0
+  INTEGER :: field_type = 1
+
+  ! do nothing in case serialization is switched off
+  IF (.NOT. (fs_is_serialization_on())) THEN
+    RETURN
+  ENDIF
+
+  ! find buffer_id and check if a buffers slot was found
+  call setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, field_type)
+  
+  ! store data
+  IF (debug) THEN
+    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+  END IF
+  
+  buffers(buffer_id)%buffer_i4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
+  buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
+  buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
+
+  ! write if we are complete
+  IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
+    WRITE(0,*) 'fs_write'
+    CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(:buffers(buffer_id)%next_available_index-1,1,1,1))
+    CALL destroy_buffered(buffer_id)
+  END IF
+
+END SUBROUTINE fs_write_scalar_i4
 
 !============================================================================
 
