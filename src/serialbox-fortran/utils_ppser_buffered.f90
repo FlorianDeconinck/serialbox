@@ -140,24 +140,19 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
       IF (buffers(idx)%next_available_index .gt. 1) THEN
         buffers(idx)%ok(1,1,1,1) = .TRUE.
         SELECT CASE (buffers(idx)%field_type)
-          ! CASE(1)
-          ! call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
-          !                         buffers(idx)%buffer_i4(1,1,1,1), &
-          !                         idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
-          !                         idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
-          !                         PPSER_MODE_WRITE )
+          CASE(1)
+            CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
+                                buffers(idx)%buffer_i4(:buffers(idx)%next_available_index-1,1,1,1))                            
           CASE(2)
             CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
-                                buffers(idx)%buffer_r4(:buffers(idx)%next_available_index,1,1,1))
-          ! CASE(3)
-          !   call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
-          !                           buffers(idx)%buffer_r8(1,1,1,1), &
-          !                           idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
-          !                           idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
-          !                           PPSER_MODE_WRITE )
+                                buffers(idx)%buffer_r4(:buffers(idx)%next_available_index-1,1,1,1))                            
+          CASE(3)
+            CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
+                                buffers(idx)%buffer_r8(:buffers(idx)%next_available_index-1,1,1,1))                            
           CASE DEFAULT
             WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
         END SELECT
+        CALL destroy_buffered(idx)
       ELSE
         SELECT CASE (buffers(idx)%field_type)
           CASE(1)
@@ -1047,7 +1042,7 @@ SUBROUTINE find_buffered_by_name(fieldname, savepoint, buffer_id)
     END IF
   END DO
 
-END SUBROUTINE
+END SUBROUTINE find_buffered_by_name
 
 ! find the ID of a buffers given name of field and savepoint
 SUBROUTINE find_buffered_id(fieldname, savepoint, idx_d1, idx_d2, idx_d3, idx_d4, buffer_id, call_index)
