@@ -150,7 +150,7 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
             CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
                                 buffers(idx)%buffer_r8(:buffers(idx)%next_available_index-1,1,1,1))                            
           CASE DEFAULT
-            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
+            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
         CALL destroy_buffered(idx)
       ELSE
@@ -174,7 +174,7 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
                                     idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
                                     PPSER_MODE_WRITE )
           CASE DEFAULT
-            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
+            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
       END IF
     END IF
@@ -846,7 +846,7 @@ SUBROUTINE create_buffered(buffer_id, serializer, savepoint, fieldname, field_ty
       ALLOCATE(buffers(buffer_id)%buffer_r8(D1, D2, D3, D4))
       buffers(buffer_id)%buffer_r8(:,:,:,:) = ieee_value( a_nan, ieee_quiet_nan )
     CASE DEFAULT
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered'
+      WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
   END SELECT
   ALLOCATE(buffers(buffer_id)%ok(D1, D2, D3, D4))
 
@@ -903,7 +903,7 @@ SUBROUTINE destroy_buffered(buffer_id)
     CASE(3)
       DEALLOCATE(buffers(buffer_id)%buffer_r8)
     CASE DEFAULT
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered in destroy'
+      WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
   END SELECT
   DEALLOCATE(buffers(buffer_id)%ok)
 
