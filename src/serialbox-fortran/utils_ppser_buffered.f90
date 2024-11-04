@@ -97,7 +97,7 @@ SUBROUTINE init_buffered()
   INTEGER :: idx
 
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG init_buffered'
+    WRITE(0,*) '[SERIALBOX] DEBUG init_buffered'
   END IF
 
   first_call = .FALSE.
@@ -152,7 +152,7 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
             CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
                                 buffers(idx)%buffer_r8(:buffers(idx)%next_available_index-1,1,1,1))                            
           CASE DEFAULT
-            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
+            WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
         CALL destroy_buffered(idx)
       ELSE IF(buffers(idx)%buffered) THEN
@@ -176,10 +176,10 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
                                     idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
                                     PPSER_MODE_WRITE )
           CASE DEFAULT
-            WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
+            WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
       ELSE
-        WRITE(0,*) '[SERIALBOX - flush savepoint] trying to flush a regular buffer (non-buffered, non-appended)'
+        WRITE(0,*) '[SERIALBOX][Flush savepoint] trying to flush a regular buffer (non-buffered, non-appended)'
       END IF
     END IF
   END DO
@@ -194,15 +194,15 @@ SUBROUTINE finalize_buffered()
   INTEGER :: idx
 
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG finalize_buffered'
+    WRITE(0,*) '[SERIALBOX] DEBUG finalize_buffered'
   END IF
 
   DO idx = 1, max_buffer
     IF (buffers(idx)%in_use) THEN
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: finalize called before all buffers have been flushed'
-      WRITE(0,*) 'savepoint_name: ', TRIM(buffers(idx)%savepoint_name)
-      WRITE(0,*) 'name of partially empty field: ', TRIM(buffers(idx)%fieldname)
-      WRITE(0,*) 'Indices filled boolean: ', buffers(idx)%ok(:,:,:,:)
+      WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: finalize called before all buffers have been flushed'
+      WRITE(0,*) '[SERIALBOX] savepoint_name: ', TRIM(buffers(idx)%savepoint_name)
+      WRITE(0,*) '[SERIALBOX] name of partially empty field: ', TRIM(buffers(idx)%fieldname)
+      WRITE(0,*) '[SERIALBOX] Indices filled boolean: ', buffers(idx)%ok(:,:,:,:)
       STOP
     END IF
     buffers(idx)%fieldname = ""
@@ -256,7 +256,7 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
 
   ! store data
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
 
   buffers(buffer_id)%buffered = .TRUE.
@@ -266,7 +266,7 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_buffered_r4: flush data'
+      WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
     END IF
     IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
@@ -355,7 +355,7 @@ SUBROUTINE fs_write_scalar_r8(serializer, savepoint, fieldname, scalar)
   
   ! store data
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
   
   buffers(buffer_id)%appended = .TRUE.
@@ -365,7 +365,7 @@ SUBROUTINE fs_write_scalar_r8(serializer, savepoint, fieldname, scalar)
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
-    WRITE(0,*) 'fs_write'
+    WRITE(0,*) '[SERIALBOX] fs_write'
     CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(:buffers(buffer_id)%next_available_index-1,1,1,1))
     CALL destroy_buffered(buffer_id)
   END IF
@@ -415,7 +415,7 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar,
 
   ! store data
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
 
   buffers(buffer_id)%buffered = .TRUE.
@@ -425,7 +425,7 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar,
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_buffered_r4: flush data'
+      WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
     END IF
     IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
@@ -513,7 +513,7 @@ SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
   
   ! store data
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
   
   buffers(buffer_id)%appended = .TRUE.
@@ -523,7 +523,7 @@ SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
-    WRITE(0,*) 'fs_write'
+    WRITE(0,*) '[SERIALBOX] fs_write'
     CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:buffers(buffer_id)%next_available_index-1,1,1,1))
     CALL destroy_buffered(buffer_id)
   END IF
@@ -573,7 +573,7 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar,
 
   ! store data
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
 
   buffers(buffer_id)%buffer_i4(i1,i2,i3,i4) = scalar
@@ -582,7 +582,7 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar,
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_buffered_r4: flush data'
+      WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
     END IF
     IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
@@ -669,7 +669,7 @@ SUBROUTINE fs_write_scalar_i4(serializer, savepoint, fieldname, scalar)
   
   ! store data
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
   
   buffers(buffer_id)%buffered = .TRUE.
@@ -679,7 +679,7 @@ SUBROUTINE fs_write_scalar_i4(serializer, savepoint, fieldname, scalar)
 
   ! write if we are complete
   IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
-    WRITE(0,*) 'fs_write'
+    WRITE(0,*) '[SERIALBOX] fs_write'
     CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(:buffers(buffer_id)%next_available_index-1,1,1,1))
     CALL destroy_buffered(buffer_id)
   END IF
@@ -707,17 +707,17 @@ SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type,
   INTEGER :: call_index = 0
       
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG setup_buffer: savepoint=', TRIM(savepoint%savepoint_name)
-    WRITE(0,*) 'DEBUG setup_buffer: fieldname=', TRIM(fieldname)
-    WRITE(0,*) 'DEBUG setup_buffer: idx_d1=', idx_d1, '(', D1, ')'
-    WRITE(0,*) 'DEBUG setup_buffer: idx_d2=', idx_d2, '(', D2, ')'
-    WRITE(0,*) 'DEBUG setup_buffer: idx_d3=', idx_d3, '(', D3, ')'
-    WRITE(0,*) 'DEBUG setup_buffer: idx_d3=', idx_d4, '(', D4, ')'
+    WRITE(0,*) '[SERIALBOX] DEBUG setup_buffer: savepoint=', TRIM(savepoint%savepoint_name)
+    WRITE(0,*) '[SERIALBOX] DEBUG setup_buffer: fieldname=', TRIM(fieldname)
+    WRITE(0,*) '[SERIALBOX] DEBUG setup_buffer: idx_d1=', idx_d1, '(', D1, ')'
+    WRITE(0,*) '[SERIALBOX] DEBUG setup_buffer: idx_d2=', idx_d2, '(', D2, ')'
+    WRITE(0,*) '[SERIALBOX] DEBUG setup_buffer: idx_d3=', idx_d3, '(', D3, ')'
+    WRITE(0,*) '[SERIALBOX] DEBUG setup_buffer: idx_d3=', idx_d4, '(', D4, ')'
   END IF
 
   ! ppser mode numbers do not align with m_serialize constants....
   IF ( mode /= PPSER_MODE_WRITE ) THEN
-    WRITE(0,*) 'ERROR, can only use kbuffer in write mode'
+    WRITE(0,*) '[SERIALBOX] ERROR, can only use kbuffer in write mode'
     STOP
   END IF
 
@@ -729,7 +729,7 @@ SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type,
   ! find ID if it already exists
   CALL find_buffered_id(fieldname, savepoint, idx_d1, idx_d2, idx_d3, idx_d4, buffer_id, call_index)
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r8: find buffer_id=', buffer_id
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r8: find buffer_id=', buffer_id
   END IF
 
   ! check if a buffers slot was found
@@ -737,7 +737,7 @@ SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type,
     ! no, so create a new buffers
     CALL get_free_buffered_id(buffer_id)
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_buffered: buffer_id=', buffer_id
+      WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered: buffer_id=', buffer_id
     END IF
     CALL create_buffered(buffer_id, serializer, savepoint, fieldname, field_type, &
                         D1, D2, D3, D4, call_index, minushalos, plushalos)
@@ -766,7 +766,7 @@ SUBROUTINE setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, fiel
   ! find ID if it already exists
   CALL find_buffered_by_name(fieldname, savepoint, buffer_id)
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG fs_write_buffered_r8: find buffer_id=', buffer_id
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r8: find buffer_id=', buffer_id
   END IF
 
   ! check if a buffers slot was found
@@ -774,7 +774,7 @@ SUBROUTINE setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, fiel
     ! no, so create a new buffers
     CALL get_free_buffered_id(buffer_id)
     IF (debug) THEN
-      WRITE(0,*) 'DEBUG fs_write_buffered: buffer_id=', buffer_id
+      WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered: buffer_id=', buffer_id
     END IF
     CALL create_buffered(buffer_id, serializer, savepoint, fieldname, field_type, MAX_BUFFER_SIZE, 1, 1, 1, 0)
   END IF
@@ -802,20 +802,20 @@ SUBROUTINE create_buffered(buffer_id, serializer, savepoint, fieldname, field_ty
 
   ! debug information
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG create_buffered: buffer_id=', buffer_id
-    WRITE(0,*) 'DEBUG create_buffered: savepoint=', TRIM(savepoint%savepoint_name)
-    WRITE(0,*) 'DEBUG create_buffered: fieldname=', TRIM(fieldname)
-    WRITE(0,*) 'DEBUG create_buffered: field_type=', field_type
-    WRITE(0,*) 'DEBUG create_buffered: D1,D2,D3,D4=', D1, D2, D3, D4
+    WRITE(0,*) '[SERIALBOX] DEBUG create_buffered: buffer_id=', buffer_id
+    WRITE(0,*) '[SERIALBOX] DEBUG create_buffered: savepoint=', TRIM(savepoint%savepoint_name)
+    WRITE(0,*) '[SERIALBOX] DEBUG create_buffered: fieldname=', TRIM(fieldname)
+    WRITE(0,*) '[SERIALBOX] DEBUG create_buffered: field_type=', field_type
+    WRITE(0,*) '[SERIALBOX] DEBUG create_buffered: D1,D2,D3,D4=', D1, D2, D3, D4
   END IF
 
   ! security check
   IF (buffer_id < 1 .OR. buffer_id > max_buffer) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: illegal buffer_id encountered'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: illegal buffer_id encountered'
     STOP
   END IF
   IF (buffers(buffer_id)%in_use) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: create called for buffers already in use'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: create called for buffers already in use'
     STOP
   END IF
 
@@ -855,7 +855,7 @@ SUBROUTINE create_buffered(buffer_id, serializer, savepoint, fieldname, field_ty
       ALLOCATE(buffers(buffer_id)%buffer_r8(D1, D2, D3, D4))
       buffers(buffer_id)%buffer_r8(:,:,:,:) = ieee_value( a_nan, ieee_quiet_nan )
     CASE DEFAULT
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
+      WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
   END SELECT
   ALLOCATE(buffers(buffer_id)%ok(D1, D2, D3, D4))
 
@@ -874,18 +874,18 @@ SUBROUTINE destroy_buffered(buffer_id)
   INTEGER                                 :: idx
   ! debug information
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG destroy_buffered: buffer_id=', buffer_id
-    WRITE(0,*) 'DEBUG destroy_buffered: savepoint=', TRIM(buffers(buffer_id)%savepoint_name)
-    WRITE(0,*) 'DEBUG destroy_buffered: fieldname=', TRIM(buffers(buffer_id)%fieldname)
+    WRITE(0,*) '[SERIALBOX] DEBUG destroy_buffered: buffer_id=', buffer_id
+    WRITE(0,*) '[SERIALBOX] DEBUG destroy_buffered: savepoint=', TRIM(buffers(buffer_id)%savepoint_name)
+    WRITE(0,*) '[SERIALBOX] DEBUG destroy_buffered: fieldname=', TRIM(buffers(buffer_id)%fieldname)
   END IF
 
   ! security check
   IF (buffer_id < 1 .OR. buffer_id > max_buffer) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: illegal buffer_id encountered'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: illegal buffer_id encountered'
     STOP
   END IF
   IF (.NOT. buffers(buffer_id)%in_use) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: destroy called for buffers not in use'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: destroy called for buffers not in use'
     STOP
   END IF
 
@@ -912,7 +912,7 @@ SUBROUTINE destroy_buffered(buffer_id)
     CASE(3)
       DEALLOCATE(buffers(buffer_id)%buffer_r8)
     CASE DEFAULT
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
+      WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
   END SELECT
   DEALLOCATE(buffers(buffer_id)%ok)
 
@@ -956,72 +956,72 @@ SUBROUTINE check_buffered(buffer_id, serializer, savepoint, fieldname, field_typ
 
   ! debug information
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG check_buffered: buffer_id=', buffer_id
-    WRITE(0,*) 'DEBUG check_buffered: savepoint=', TRIM(savepoint%savepoint_name)
-    WRITE(0,*) 'DEBUG check_buffered: fieldname=', TRIM(fieldname)
-    WRITE(0,*) 'DEBUG check_buffered: field_type=', field_type
-    WRITE(0,*) 'DEBUG check_buffered: D1,D2,D3,D4=', D1, D2, D3, D4
-    WRITE(0,*) 'DEBUG check_buffered: idx_d1=', idx_d1
-    WRITE(0,*) 'DEBUG check_buffered: idx_d2=', idx_d2
-    WRITE(0,*) 'DEBUG check_buffered: idx_d3=', idx_d3
-    WRITE(0,*) 'DEBUG check_buffered: idx_d4=', idx_d4
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: buffer_id=', buffer_id
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: savepoint=', TRIM(savepoint%savepoint_name)
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: fieldname=', TRIM(fieldname)
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: field_type=', field_type
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: D1,D2,D3,D4=', D1, D2, D3, D4
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: idx_d1=', idx_d1
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: idx_d2=', idx_d2
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: idx_d3=', idx_d3
+    WRITE(0,*) '[SERIALBOX] DEBUG check_buffered: idx_d4=', idx_d4
   END IF
 
   ! security check
   IF (buffer_id < 1 .OR. buffer_id > max_buffer) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: illegal buffer_id encountered'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: illegal buffer_id encountered'
     STOP
   END IF
   IF (.NOT. buffers(buffer_id)%in_use) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: check called for buffers not in use'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: check called for buffers not in use'
     STOP
   END IF
 
   ! check consistency
   IF (.NOT. (TRIM(buffers(buffer_id)%fieldname) == TRIM(fieldname))) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: inconsistent name encountered'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: inconsistent name encountered'
     STOP
   END IF
   IF (.NOT. (C_ASSOCIATED(buffers(buffer_id)%serializer, serializer%serializer_ptr))) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: write called for same field but different serializer'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: write called for same field but different serializer'
     STOP
   END IF
   
   IF (.NOT. (TRIM(buffers(buffer_id)%savepoint_name) == TRIM(savepoint%savepoint_name))) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: write called for same field but different savepoint'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: write called for same field but different savepoint'
     STOP
   END IF
   IF (ANY( (/buffers(buffer_id)%D1, buffers(buffer_id)%D2, buffers(buffer_id)%D3, buffers(buffer_id)%D4/) /= (/D1, D2, D3, D4/) )) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: write called with inconsistent dimensions'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: write called with inconsistent dimensions'
     STOP
   END IF
   IF ((idx_d3 < 1) .OR. (idx_d3 > D3)) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: out of bound idx_d3-index encountered:', idx_d3
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: out of bound idx_d3-index encountered:', idx_d3
     STOP
   END IF
   IF ((idx_d4 < 1) .OR. (idx_d4 > D4)) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: out of bound idx_d4-index encountered', idx_d4
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: out of bound idx_d4-index encountered', idx_d4
     STOP
   END IF
   IF (buffers(buffer_id)%has_minushalos .AND. PRESENT(minushalos)) THEN
     IF (ANY(buffers(buffer_id)%minushalos /= minushalos)) THEN
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: inconsistent minushalos encountered'
+      WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: inconsistent minushalos encountered'
       STOP
     END IF
   END IF
   IF (buffers(buffer_id)%has_plushalos .AND. PRESENT(plushalos)) THEN
     IF (ANY(buffers(buffer_id)%plushalos /= plushalos)) THEN
-      WRITE(0,*) 'ERROR in utils_ppser_buffered: inconsistent plushalos encountered'
+      WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: inconsistent plushalos encountered'
       STOP
     END IF
   END IF
   IF (buffers(buffer_id)%field_type /= field_type) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: write with inconsistent field_type encountered'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: write with inconsistent field_type encountered'
     STOP
   END IF
   ! Should be redundant, but doesn't hurt to recheck
   IF (buffers(buffer_id)%ok(idx_d1,idx_d2,idx_d3,idx_d4)) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: index already written'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: index already written'
     STOP
   END IF
 
@@ -1068,7 +1068,7 @@ SUBROUTINE find_buffered_id(fieldname, savepoint, idx_d1, idx_d2, idx_d3, idx_d4
   buffer_id = 0
   call_index = 0
   IF (debug) THEN
-    WRITE(0,*) 'DEBUG find_buffered_id: fieldname=', TRIM(fieldname), ' savepoint=', TRIM(savepoint%savepoint_name)
+    WRITE(0,*) '[SERIALBOX] DEBUG find_buffered_id: fieldname=', TRIM(fieldname), ' savepoint=', TRIM(savepoint%savepoint_name)
   END IF
 
   DO idx = 1, max_buffer
@@ -1095,9 +1095,9 @@ SUBROUTINE find_buffered_id(fieldname, savepoint, idx_d1, idx_d2, idx_d3, idx_d4
 
   IF (debug) THEN
     IF (buffer_id == 0) THEN
-      WRITE(0,*) 'DEBUG find_buffered_id: no buffers found, call_index=', call_index
+      WRITE(0,*) '[SERIALBOX] DEBUG find_buffered_id: no buffers found, call_index=', call_index
     ELSE
-      WRITE(0,*) 'DEBUG find_buffered_id: found buffer_id=', buffer_id, ' call_index=', call_index
+      WRITE(0,*) '[SERIALBOX] DEBUG find_buffered_id: found buffer_id=', buffer_id, ' call_index=', call_index
     END IF
   END IF
 
@@ -1126,7 +1126,7 @@ SUBROUTINE get_free_buffered_id(buffer_id)
 
   ! abort if no free index has been found
   IF (idx > max_buffer) THEN
-    WRITE(0,*) 'ERROR in utils_ppser_buffered: no more free buffers (increase max_buffer)'
+    WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: no more free buffers (increase max_buffer)'
     STOP
   END IF
 
