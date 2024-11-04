@@ -62,6 +62,8 @@ PRIVATE
     REAL(KIND=C_DOUBLE), ALLOCATABLE :: buffer_r8(:,:,:,:)
     LOGICAL, ALLOCATABLE :: ok(:,:,:,:)           ! has this index been written?
     INTEGER :: next_available_index = 1
+    LOGICAL :: buffered = .FALSE.
+    LOGICAL :: appended = .FALSE.
   END TYPE buffer_type
 
   INTEGER, PARAMETER   :: max_buffer = 1000      ! increase in case you get errors
@@ -137,7 +139,7 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
       buffers(idx)%ok(:,:,:,:) = .TRUE.
       buffers(idx)%ok(1,1,1,1) = .FALSE.
 
-      IF (buffers(idx)%next_available_index .gt. 1) THEN
+      IF (buffers(idx)%appended) THEN
         buffers(idx)%ok(1,1,1,1) = .TRUE.
         SELECT CASE (buffers(idx)%field_type)
           CASE(1)
@@ -153,10 +155,10 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
             WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
         CALL destroy_buffered(idx)
-      ELSE
+      ELSE IF(buffers(idx)%buffered) THEN
         SELECT CASE (buffers(idx)%field_type)
           CASE(1)
-            call fs_write_buffered_i4( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+            call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
                                     buffers(idx)%buffer_i4(1,1,1,1), &
                                     idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
                                     idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
@@ -176,6 +178,8 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
           CASE DEFAULT
             WRITE(0,*) 'ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
+      ELSE
+        WRITE(0,*) '[SERIALBOX - flush savepoint] trying to flush a regular buffer (non-buffered, non-appended)'
       END IF
     END IF
   END DO
@@ -255,6 +259,7 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
 
+  buffers(buffer_id)%buffered = .TRUE.
   buffers(buffer_id)%buffer_r8(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
@@ -353,6 +358,7 @@ SUBROUTINE fs_write_scalar_r8(serializer, savepoint, fieldname, scalar)
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
   
+  buffers(buffer_id)%appended = .TRUE.
   buffers(buffer_id)%buffer_r8(buffers(buffer_id)%next_available_index,1,1,1) = scalar
   buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
   buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
@@ -412,6 +418,7 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar,
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
 
+  buffers(buffer_id)%buffered = .TRUE.
   buffers(buffer_id)%buffer_r4(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
@@ -509,6 +516,7 @@ SUBROUTINE fs_write_scalar_r4(serializer, savepoint, fieldname, scalar)
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
   
+  buffers(buffer_id)%appended = .TRUE.
   buffers(buffer_id)%buffer_r4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
   buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
   buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
@@ -664,6 +672,7 @@ SUBROUTINE fs_write_scalar_i4(serializer, savepoint, fieldname, scalar)
     WRITE(0,*) 'DEBUG fs_write_buffered_r4: store data'
   END IF
   
+  buffers(buffer_id)%buffered = .TRUE.
   buffers(buffer_id)%buffer_i4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
   buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
   buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
