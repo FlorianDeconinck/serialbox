@@ -576,6 +576,7 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar,
     WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
 
+  buffers(buffer_id)%buffered = .TRUE.
   buffers(buffer_id)%buffer_i4(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
@@ -672,7 +673,7 @@ SUBROUTINE fs_write_scalar_i4(serializer, savepoint, fieldname, scalar)
     WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
   END IF
   
-  buffers(buffer_id)%buffered = .TRUE.
+  buffers(buffer_id)%appended = .TRUE.
   buffers(buffer_id)%buffer_i4(buffers(buffer_id)%next_available_index,1,1,1) = scalar
   buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
   buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
