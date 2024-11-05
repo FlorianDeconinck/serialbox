@@ -268,7 +268,9 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
     IF (debug) THEN
       WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
     END IF
-    IF (buffers(buffer_id)%has_minushalos) THEN
+    IF (nDims == 0) THEN
+      CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(1,1,1,1))
+    ELSE IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
         IF (nDims == 1) THEN
           CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r8(:,1,1,1), &
@@ -427,7 +429,9 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar,
     IF (debug) THEN
       WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
     END IF
-    IF (buffers(buffer_id)%has_minushalos) THEN
+    IF (nDims == 0) THEN
+      CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(1,1,1,1))
+    ELSE IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
         IF (nDims == 1) THEN
           CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_r4(:,1,1,1), &
@@ -585,7 +589,9 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar,
     IF (debug) THEN
       WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
     END IF
-    IF (buffers(buffer_id)%has_minushalos) THEN
+    IF (nDims == 0) THEN
+      CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(1,1,1,1))
+    ELSE IF (buffers(buffer_id)%has_minushalos) THEN
       IF (buffers(buffer_id)%has_plushalos) THEN
         IF (nDims == 1) THEN
           CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_i4(:,1,1,1), &
@@ -943,7 +949,7 @@ END SUBROUTINE destroy_buffered
 
 ! check consistency of current request with metadata stored in buffers
 SUBROUTINE check_buffered(buffer_id, serializer, savepoint, fieldname, field_type, &
-                         D1, D2, D3, D4, idx_d1, idx_d2, idx_d3, idx_d4, minushalos, plushalos)
+                          D1, D2, D3, D4, idx_d1, idx_d2, idx_d3, idx_d4, minushalos, plushalos)
   IMPLICIT NONE
 
   INTEGER, INTENT(IN)                     :: buffer_id
