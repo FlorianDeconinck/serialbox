@@ -280,7 +280,7 @@ class PpSer:
 
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
         if if_statement:
             l += 'IF (' + if_statement + ') THEN\n'
@@ -312,7 +312,7 @@ class PpSer:
             self.__exit_error(directive=args[0],
                               msg='Must specify a name and a list of key=value pairs')
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         if if_statement:
             l += 'IF (' + if_statement + ') THEN\n'
 
@@ -339,7 +339,7 @@ class PpSer:
     def __ser_metainfo(self, args):
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -393,7 +393,7 @@ class PpSer:
                 dirs[3:4] = l
 
         # REGISTER [arg ...]
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -419,7 +419,7 @@ class PpSer:
 
     # REGISTERTRACERS directive
     def __ser_registertracers(self, args):
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
 
         self.__calls.add(self.methods['registertracers'])
         l += 'call fs_RegisterAllTracers()\n'
@@ -433,7 +433,7 @@ class PpSer:
             self.__exit_error(directive=args[0],
                               msg='Must specify a list of fields')
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -459,7 +459,7 @@ class PpSer:
         name = dirs[0]
 
         # generate serialization code
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -484,7 +484,7 @@ class PpSer:
     def __ser_mode(self, args):
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -508,7 +508,7 @@ class PpSer:
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
         # generate serialization code        
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -544,7 +544,7 @@ class PpSer:
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
         # generate serialization code        
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -616,7 +616,7 @@ class PpSer:
         name = dirs[0]
 
         # generate serialization code        
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -652,7 +652,7 @@ class PpSer:
         self.__calls.add(self.methods['datareadperturb'])
         self.__calls.add(self.methods['getmode'])
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -721,7 +721,7 @@ class PpSer:
         self.__calls.add(self.methods['datawrite'])
         self.__calls.add(self.methods['getmode'])
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -750,7 +750,7 @@ class PpSer:
 
         (tracerspec, if_statement) = self.__ser_tracer_parse(args)
 
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         tab = ''
 
         if if_statement:
@@ -796,7 +796,7 @@ class PpSer:
 
     # CLEANUP directive
     def __ser_cleanup(self, args):
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         l += '! cleanup serialization environment\n'
         
         self.__calls.add(self.methods['cleanup'])
@@ -806,7 +806,7 @@ class PpSer:
 
     # ON directive
     def __ser_on(self, args):
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         
         l += 'call ' + self.methods['on'] + '()\n'
         self.__calls.add(self.methods['on'])
@@ -815,7 +815,7 @@ class PpSer:
 
     # OFF directive
     def __ser_off(self, args):
-        l = '! file: ' + self.infile + ' lineno: #' + str(self.__linenum) + '\n'
+        l = ''
         
         l += 'call ' + self.methods['off'] + '()\n'
         self.__calls.add(self.methods['off'])
@@ -994,19 +994,19 @@ class PpSer:
                 self.__line += '#ifdef ' + self.ifdef + '\n'
             if len(calls_fs) > 0:
                 self.__line += 'USE ' + self.module + ', ONLY: &\n'
-                for s in calls_fs[:-1]:
+                for s in sorted(calls_fs[:-1]):
                     self.__line += '  ' + s + ', &\n'
                 self.__line += '  ' + calls_fs[-1] + '\n'
             if len(calls_pp) > 0:
                 self.__line += 'USE utils_ppser, ONLY:  &\n'
-                for s in calls_pp[:-1]:
+                for s in sorted(calls_pp[:-1]):
                     self.__line += '  ' + s + ', &\n'
                 self.__line += '  ' + calls_pp[-1] + '\n'
                 self.__line += 'USE savepoint_helpers\n'
                 self.__line += 'USE utils_ppser_buffered\n'
 
             if len(self.__extra_module) > 0:
-                for mod in self.__extra_module:
+                for mod in sorted(self.__extra_module):
                     self.__line += 'USE ' + mod + '\n'
 
             if self.ifdef:
