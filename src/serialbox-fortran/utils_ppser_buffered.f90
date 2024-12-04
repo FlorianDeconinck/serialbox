@@ -56,10 +56,11 @@ PRIVATE
                                                   ! and field being filled in parallel  
     LOGICAL :: has_minushalos, has_plushalos
     INTEGER :: minushalos(3), plushalos(3)
-    INTEGER :: field_type = 0                     ! 0 = not used, 1 = int, 2 = r4, 3 = r8
+    INTEGER :: field_type = 0                     ! 0 = not used, 1 = int, 2 = r4, 3 = r8, 4=logical
     INTEGER, ALLOCATABLE :: buffer_i4(:,:,:,:)
     REAL(KIND=C_FLOAT), ALLOCATABLE :: buffer_r4(:,:,:,:)
     REAL(KIND=C_DOUBLE), ALLOCATABLE :: buffer_r8(:,:,:,:)
+    LOGICAL, ALLOCATABLE :: buffer_logical(:,:,:,:)
     LOGICAL, ALLOCATABLE :: ok(:,:,:,:)           ! has this index been written?
     INTEGER :: next_available_index = 1
     LOGICAL :: buffered = .FALSE.
@@ -74,12 +75,14 @@ PRIVATE
     MODULE PROCEDURE fs_write_buffered_i4
     MODULE PROCEDURE fs_write_buffered_r4
     MODULE PROCEDURE fs_write_buffered_r8
+    MODULE PROCEDURE fs_write_buffered_logical
   END INTERFACE
 
   INTERFACE fs_write_scalar
     MODULE PROCEDURE fs_write_scalar_i4
     MODULE PROCEDURE fs_write_scalar_r4
     MODULE PROCEDURE fs_write_scalar_r8
+    MODULE PROCEDURE fs_write_scalar_logical
   END INTERFACE
 
   LOGICAL :: first_call = .TRUE.                  ! used for initialization
@@ -130,7 +133,7 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
 
   DO idx = 1, max_buffer
 
-    IF (buffers(idx)%savepoint_name == savepoint%savepoint_name) THEN
+    IF ((TRIM(buffers(idx)%savepoint_name) == TRIM(savepoint%savepoint_name))) THEN
 
       ! Re-using the write interface:
       ! we are going to re-write the first index, so that the function goes
@@ -151,6 +154,9 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
           CASE(3)
             CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
                                 buffers(idx)%buffer_r8(:buffers(idx)%next_available_index-1,1,1,1))                            
+          CASE(4)
+            CALL fs_write_field(serializer, savepoint, buffers(idx)%fieldname, &
+                                buffers(idx)%buffer_logical(:buffers(idx)%next_available_index-1,1,1,1))     
           CASE DEFAULT
             WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(idx)%field_type, ') for savepoint ', buffers(idx)%savepoint_name
         END SELECT
@@ -172,6 +178,12 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
           CASE(3)
             call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
                                     buffers(idx)%buffer_r8(1,1,1,1), &
+                                    idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
+                                    idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
+                                    PPSER_MODE_WRITE )
+          CASE(4)
+            call fs_write_buffered( serializer, savepoint, nDims, buffers(idx)%fieldname, &
+                                    buffers(idx)%buffer_logical(1,1,1,1), &
                                     idx_d1, buffers(idx)%D1, idx_d2, buffers(idx)%D2, &
                                     idx_d3, buffers(idx)%D3, idx_d4, buffers(idx)%D4, &
                                     PPSER_MODE_WRITE )
@@ -695,6 +707,165 @@ END SUBROUTINE fs_write_scalar_i4
 
 !============================================================================
 
+! overloads fs_write_buffered: version for i4 integers and 3d fields
+SUBROUTINE fs_write_buffered_logical(serializer, savepoint, nDims, fieldname, scalar, &
+                                    idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4, &
+                                    mode, minushalos, plushalos)
+  IMPLICIT NONE
+
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  LOGICAL, INTENT(IN), TARGET             :: scalar
+  INTEGER, INTENT(IN)                     :: idx_d1, D1, idx_d2, D2, idx_d3, D3, idx_d4, D4
+  INTEGER, INTENT(IN)                     :: mode, nDims
+  INTEGER, INTENT(IN), OPTIONAL           :: minushalos(3), plushalos(3)
+
+  ! local vars
+  INTEGER :: buffer_id = 0
+  INTEGER :: field_type = 4
+  INTEGER :: i1, i2, i3, i4, n1, n2, n3, n4 = 1
+
+  ! do nothing in case serialization is switched off
+  IF (.NOT. (fs_is_serialization_on())) THEN
+    RETURN
+  ENDIF
+
+  ! Override dimensionality based on nDims
+  i1 = idx_d1
+  i2 = idx_d2
+  i3 = idx_d3
+  i4 = idx_d4
+  n1 = D1
+  n2 = D2
+  n3 = D3
+  n4 = D4
+
+  ! find buffer_id and check if a buffers slot was found
+  call setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type, &
+                    i1, n1, i2, n2, i3, n3, i4, n4, &
+                    mode, minushalos, plushalos)
+
+  ! store data
+  IF (debug) THEN
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_logical: store data'
+  END IF
+
+  buffers(buffer_id)%buffered = .TRUE.
+  buffers(buffer_id)%buffer_logical(i1,i2,i3,i4) = scalar
+  buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
+
+  ! write if we are complete
+  IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
+    IF (debug) THEN
+      WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: flush data'
+    END IF
+    IF (nDims == 0) THEN
+      CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(1,1,1,1))
+    ELSE IF (buffers(buffer_id)%has_minushalos) THEN
+      IF (buffers(buffer_id)%has_plushalos) THEN
+        IF (nDims == 1) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,1,1,1), &
+          minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
+        ELSE IF (nDims == 2) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,1,1), &
+          minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
+        ELSE IF (nDims == 3) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,1), &
+          minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
+        ELSE IF (nDims == 4) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,:), &
+          minushalos=buffers(buffer_id)%minushalos, plushalos=buffers(buffer_id)%plushalos)
+        END IF
+      ELSE
+        IF (nDims == 1) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,1,1,1), &
+          minushalos=buffers(buffer_id)%minushalos)
+        ELSE IF (nDims == 2) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,1,1), &
+          minushalos=buffers(buffer_id)%minushalos)
+        ELSE IF (nDims == 3) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,1), &
+          minushalos=buffers(buffer_id)%minushalos)
+        ELSE IF (nDims == 4) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,:), &
+          minushalos=buffers(buffer_id)%minushalos)
+        END IF
+      END IF
+    ELSE
+      IF (buffers(buffer_id)%has_plushalos) THEN
+        IF (nDims == 1) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,1,1,1), &
+          plushalos=buffers(buffer_id)%plushalos)
+        ELSE IF (nDims == 2) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,1,1), &
+          plushalos=buffers(buffer_id)%plushalos)
+        ELSE IF (nDims == 3) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,1), &
+          plushalos=buffers(buffer_id)%plushalos)
+        ELSE IF (nDims == 4) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,:), &
+          plushalos=buffers(buffer_id)%plushalos)
+        END IF
+      ELSE
+        IF (nDims == 1) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,1,1,1))
+        ELSE IF (nDims == 2) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,1,1))
+        ELSE IF (nDims == 3) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,1))
+        ELSE IF (nDims == 4) THEN
+          CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:,:,:,:))
+      END IF
+    END IF
+  END IF
+
+  CALL destroy_buffered(buffer_id)
+  END IF
+
+END SUBROUTINE fs_write_buffered_logical
+
+SUBROUTINE fs_write_scalar_logical(serializer, savepoint, fieldname, scalar)
+  IMPLICIT NONE
+
+  TYPE(t_serializer), TARGET, INTENT(IN)  :: serializer
+  TYPE(t_savepoint), TARGET, INTENT(IN)   :: savepoint
+  CHARACTER(LEN=*), INTENT(IN)            :: fieldname
+  LOGICAL, INTENT(IN), TARGET             :: scalar
+
+  ! local vars
+  INTEGER :: buffer_id = 0
+  INTEGER :: field_type = 4
+
+  ! do nothing in case serialization is switched off
+  IF (.NOT. (fs_is_serialization_on())) THEN
+    RETURN
+  ENDIF
+
+  ! find buffer_id and check if a buffers slot was found
+  call setup_buffer_scalar(buffer_id, serializer, savepoint, fieldname, field_type)
+
+  ! store data
+  IF (debug) THEN
+    WRITE(0,*) '[SERIALBOX] DEBUG fs_write_buffered_r4: store data'
+  END IF
+
+  buffers(buffer_id)%appended = .TRUE.
+  buffers(buffer_id)%buffer_logical(buffers(buffer_id)%next_available_index,1,1,1) = scalar
+  buffers(buffer_id)%ok(buffers(buffer_id)%next_available_index,1,1,1) = .TRUE.
+  buffers(buffer_id)%next_available_index = buffers(buffer_id)%next_available_index + 1
+
+  ! write if we are complete
+  IF (ALL(buffers(buffer_id)%ok(:,:,:,:))) THEN
+  WRITE(0,*) '[SERIALBOX] fs_write'
+  CALL fs_write_field(serializer, savepoint, fieldname, buffers(buffer_id)%buffer_logical(:buffers(buffer_id)%next_available_index-1,1,1,1))
+  CALL destroy_buffered(buffer_id)
+  END IF
+
+END SUBROUTINE fs_write_scalar_logical
+
+!============================================================================
+
 ! checks if a buffers exists for this fields and if yes, checks consistency with
 ! current request. if not, it creates a new buffers.
 SUBROUTINE setup_buffer(buffer_id, serializer, savepoint, fieldname, field_type, &
@@ -861,6 +1032,9 @@ SUBROUTINE create_buffered(buffer_id, serializer, savepoint, fieldname, field_ty
     CASE(3)
       ALLOCATE(buffers(buffer_id)%buffer_r8(D1, D2, D3, D4))
       buffers(buffer_id)%buffer_r8(:,:,:,:) = ieee_value( a_nan, ieee_quiet_nan )
+    CASE(4)
+      ALLOCATE(buffers(buffer_id)%buffer_logical(D1, D2, D3, D4))
+      buffers(buffer_id)%buffer_logical(:,:,:,:) = .FALSE.
     CASE DEFAULT
       WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
   END SELECT
@@ -918,6 +1092,8 @@ SUBROUTINE destroy_buffered(buffer_id)
       DEALLOCATE(buffers(buffer_id)%buffer_r4)
     CASE(3)
       DEALLOCATE(buffers(buffer_id)%buffer_r8)
+    CASE(4)
+      DEALLOCATE(buffers(buffer_id)%buffer_logical)
     CASE DEFAULT
       WRITE(0,*) '[SERIALBOX] ERROR in utils_ppser_buffered: unsupported field_type encountered (', buffers(buffer_id)%field_type, ') for savepoint ', buffers(buffer_id)%savepoint_name
   END SELECT
@@ -1050,7 +1226,7 @@ SUBROUTINE find_buffered_by_name(fieldname, savepoint, buffer_id)
   DO idx = 1, max_buffer
     IF (buffers(idx)%in_use) THEN 
       IF (TRIM(fieldname) == TRIM(buffers(idx)%fieldname)) THEN
-        IF (TRIM( savepoint%savepoint_name) == TRIM(buffers(idx)%savepoint_name)) THEN
+        IF (TRIM(savepoint%savepoint_name) == TRIM(buffers(idx)%savepoint_name)) THEN
             buffer_id = idx
             EXIT
         END IF     
