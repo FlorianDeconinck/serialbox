@@ -920,6 +920,7 @@ class PpSer:
                     is_data_record = True
                 elif args[0].upper() in self.language['flush_savepoint']:
                     self.__ser_flush_savepoint(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['tracer']:
                     self.__ser_tracer(args)
                 elif args[0].upper() in self.language['registertracers']:
