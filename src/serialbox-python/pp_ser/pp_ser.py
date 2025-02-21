@@ -164,6 +164,7 @@ class PpSer:
         self.__use_stmt_in_module = False  # USE statement was inserted in module
         self.__extra_module = []      # extra module to add to use statement
         self.__skip_next_n_lines = 0  # Number of line to skip (use for lookahead)
+        self.__current_savepoint = ""  # Current savepoint being parsed
 
         if modules:
             self.__extra_module = modules.split(',')
@@ -449,7 +450,11 @@ class PpSer:
         self.__line = l
 
     # SAVEPOINT directive
-    def __ser_savepoint(self, args):
+    def __ser_savepoint(self, args) -> str:
+        """Generate the 'savepoint' verb if in whitelist or whitelist is not setup.
+        
+        Return: name of the savepoint
+        """
         (dirs, keys, values, if_statement) = self.__ser_arg_parse(args)
 
         # extract save point name
@@ -479,6 +484,7 @@ class PpSer:
             l += 'ENDIF\n'
 
         self.__line = l
+        return name
 
     # MODE directive
     def __ser_mode(self, args):
@@ -867,9 +873,16 @@ class PpSer:
 
     # LINE: !$SER directive
     def __re_ser(self):
+        """Unfold directives into Frotran code
+        
+        Return:
+        - verb was found
+        - verb is a data or savepoint
+        """
         r1 = re.compile('^ *!\$ser *(.*)$', re.IGNORECASE)
         r2 = re.compile(r'''((?:[^ "']|"[^"]*"|'[^']*')+)''', re.IGNORECASE)
         m = r1.search(self.__line)
+        is_data_record = False
         if m:
             if m.group(1):
                 args = r2.split(m.group(1))[1::2]
@@ -884,21 +897,27 @@ class PpSer:
                 elif args[0].upper() in self.language['register']:
                     self.__ser_register(args)
                 elif args[0].upper() in self.language['savepoint']:
-                    self.__ser_savepoint(args)
+                    self.__current_savepoint = self.__ser_savepoint(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['zero']:
                     self.__ser_zero(args)
                 elif args[0].upper() in self.language['accdata']:
                     self.__ser_data(args, True)
                 elif args[0].upper() in self.language['data']:
                     self.__ser_data(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['data_writeonly']:
                     self.__ser_data_writeonly(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['data_kbuff']:
                     self.__ser_kbuff(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['data_buffered']:
                     self.__ser_data_buffered(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['data_append']:
                     self.__ser_data_append(args)
+                    is_data_record = True
                 elif args[0].upper() in self.language['flush_savepoint']:
                     self.__ser_flush_savepoint(args)
                 elif args[0].upper() in self.language['tracer']:
@@ -916,7 +935,7 @@ class PpSer:
                 else:
                     self.__exit_error(directive=args[0],
                                       msg='Unknown directive encountered')
-        return m
+        return m, is_data_record
 
     # LINE: end module/end program
     def __re_endmodule(self):
@@ -1014,7 +1033,13 @@ class PpSer:
             self.__line += '\n'
 
     # evaluate one line
-    def lexer(self, final=False):
+    def lexer(self, savepoints: list[str], final=False):
+        """Lex the preprocessing directives and generate fortan code
+        
+        Return:
+            True: exclude entire savepoint block
+            False: lex the block
+        """
 
         # parse lines related to scope
         self.__re_module()
@@ -1023,7 +1048,9 @@ class PpSer:
         self.__re_def()
 
         # parse !$SER lines
-        if self.__re_ser():
+        original_line = self.__line
+        is_line_begin, is_data_record = self.__re_ser()
+        if is_line_begin:
             # if this is the first line with !$SER statements, add #ifdef
             if self.ifdef and not self.__ser:
                 self.__line = '#ifdef ' + self.ifdef + '\n' + self.__line
@@ -1040,9 +1067,17 @@ class PpSer:
                 self.__exit_error(msg='Unterminated #ifdef ' + self.ifdef + ' encountered')
             if self.__module:
                 self.__exit_error(msg='Unterminated module or program unit encountered')
+        
+        # Escape processing directives any data verbs if not in whitelist
+        if (
+            is_data_record and
+            savepoints != [] and
+            self.__current_savepoint not in savepoints
+        ):
+            self.__line = original_line
 
     # execute one parsing pass over file
-    def parse(self, generate=False):
+    def parse(self, savepoints: list[str], generate=False):
         # if generate == False we only analyse the file
 
         # reset flags (which define state of parser)
@@ -1082,21 +1117,21 @@ class PpSer:
                     self.__line = self.__line.rstrip()
                     continue
                 # parse line
-                self.lexer()
+                self.lexer(savepoints)
                 if generate:
                     self.__outputBuffer += self.__line
                 # cleanup current line (used for line continuation and final lexer call)
                 self.__line = ''
-            self.lexer(final=True)
+            self.lexer(savepoints, final=True)
 
         finally:
             input_file.close()
 
     # main processing method
-    def preprocess(self):
+    def preprocess(self, savepoints: list[str] = []):
         # parse file
-        self.parse()                # first pass, analyse only
-        self.parse(generate=True)   # second pass, preprocess
+        self.parse(savepoints)                # first pass, analyse only
+        self.parse(savepoints, generate=True)   # second pass, preprocess
         # write output
         if self.outfile != '':
             output_file = tempfile.NamedTemporaryFile(delete=False)
@@ -1218,6 +1253,8 @@ def parse_args():
                       default='', type=str, dest='modules')
     parser.add_option('-s', '--sp-as-var', help='Savepoint specified as variable instead of string',
                       default=False, action='store_true', dest='sp_as_var')
+    parser.add_option('--savepoints', help='Whitelist of savepoint to generate',
+                      action='append', dest='savepoints')
     (options, args) = parser.parse_args()
     if len(args) < 1:
         parser.error('Need at least one source file to process')
@@ -1260,4 +1297,4 @@ if __name__ == "__main__":
             ser = PpSer(infile, real='wp', outfile=outfile, identical=(not options.ignore_identical),
                         verbose=options.verbose, acc_prefix=options.acc_prefix, acc_if=options.acc_if,
                         modules=options.modules, sp_as_var=options.sp_as_var)
-            ser.preprocess()
+            ser.preprocess(options.savepoints)
