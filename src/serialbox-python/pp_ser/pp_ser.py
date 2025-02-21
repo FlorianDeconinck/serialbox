@@ -1256,6 +1256,8 @@ def parse_args():
                       default=False, action='store_true', dest='sp_as_var')
     parser.add_option('--savepoints', help='Whitelist of savepoint to generate',
                       action='append', dest='savepoints', default=[])
+    parser.add_option('--always-run', help='Deactivate file skip when not newer file',
+                      action='store_false', dest='always_run', default=False)
     (options, args) = parser.parse_args()
     if len(args) < 1:
         parser.error('Need at least one source file to process')
@@ -1292,7 +1294,7 @@ if __name__ == "__main__":
             outfile = ''
 
         # If output is to a file and the file is more updated than the input, skip
-        if options.savepoints == [] and os.path.exists(outfile) and os.path.getctime(outfile) > os.path.getctime(infile):
+        if options.always_run and os.path.exists(outfile) and os.path.getctime(outfile) > os.path.getctime(infile):
             print('Skipping', infile)
         else:
             print('Processing file', infile)
