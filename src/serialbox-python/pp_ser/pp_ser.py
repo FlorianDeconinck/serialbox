@@ -1255,7 +1255,7 @@ def parse_args():
     parser.add_option('-s', '--sp-as-var', help='Savepoint specified as variable instead of string',
                       default=False, action='store_true', dest='sp_as_var')
     parser.add_option('--savepoints', help='Whitelist of savepoint to generate',
-                      action='append', dest='savepoints')
+                      action='append', dest='savepoints', default=[])
     (options, args) = parser.parse_args()
     if len(args) < 1:
         parser.error('Need at least one source file to process')
@@ -1267,6 +1267,7 @@ def parse_args():
         for indir in args:
             if not os.path.isdir(indir):
                 parser.error('Arguments need to be directories with recursive option')
+    
     return options, args
 
 if __name__ == "__main__":
