@@ -1050,8 +1050,17 @@ class PpSer:
 
         # parse !$SER lines
         original_line = self.__line
-        is_line_begin, is_data_record = self.__re_ser()
-        if is_line_begin:
+        is_block_begin, is_data_record = self.__re_ser()
+
+        # Escape processing directives any data verbs if not in whitelist
+        if (
+            is_data_record and
+            savepoints != [] and
+            self.__current_savepoint not in savepoints
+        ):
+            self.__line = original_line
+
+        if is_block_begin:
             # if this is the first line with !$SER statements, add #ifdef
             if self.ifdef and not self.__ser:
                 self.__line = '#ifdef ' + self.ifdef + '\n' + self.__line
@@ -1069,13 +1078,6 @@ class PpSer:
             if self.__module:
                 self.__exit_error(msg='Unterminated module or program unit encountered')
         
-        # Escape processing directives any data verbs if not in whitelist
-        if (
-            is_data_record and
-            savepoints != [] and
-            self.__current_savepoint not in savepoints
-        ):
-            self.__line = original_line
 
     # execute one parsing pass over file
     def parse(self, savepoints: list[str], generate=False):
