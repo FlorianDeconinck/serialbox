@@ -845,6 +845,41 @@ class PpSer:
 
         return m
 
+    def __re_ser_verbatim_arg(self, line: str):
+        pass
+        """
+        Unfold directives from Fortran code into string
+        to add serial args to a function or subroutine
+
+        Inputs:
+        - line: the line of Fortran code to preprocess
+        
+        Return:
+        - preprocessed line
+        """
+        r1 = re.compile('^ *!\$ser *(.*)$', re.IGNORECASE)
+        r2 = re.compile(r'''((?:[^ "']|"[^"]*"|'[^']*')+)''', re.IGNORECASE)
+        m = r1.search(line)
+        if m:
+            if m.group(1):
+                args = r2.split(m.group(1))[1::2]
+                if args[0].upper() in self.language['verbatim']:
+                    newline = ' '.join(r2.split(m.group(1))[1::2][1:]) + '\n'
+                else raise ValueError(
+                    f"Serialbox directive {args[0]} not allowed in call signature"
+                )
+
+            # if this is the first line with !$SER statements, add #ifdef
+            if self.ifdef and not self.__ser:
+                newline = '#ifdef ' + self.ifdef + '\n' + line
+                self.__ser = True
+        else:
+            # if this is the first line without !$SER statements, add #endif
+            if self.ifdef and self.__ser:
+                newline = '#endif\n' + line
+                self.__ser = False
+        return newline
+
     # LINE: subroutine or function
     def __re_subroutine_function(self):
         if self.__use_stmt_in_module:  # Statement produced at module level
@@ -853,6 +888,7 @@ class PpSer:
         r_cont = re.compile('^ *(subroutine|function)([^!]*)&', re.IGNORECASE)
         m = r.search(self.__line)
         m_cont = r_cont.search(self.__line)
+
         if m and not m_cont:
             self.__produce_use_stmt()
         elif m and m_cont:
@@ -861,8 +897,9 @@ class PpSer:
 
             # look ahead
             nextline = linecache.getline(os.path.join(self.infile), lookahead_index)
-            r_continued_line = re.compile('^([^!]*)&', re.IGNORECASE)
+            r_continued_line = re.compile('^([^!]*)&|^ *!', re.IGNORECASE)
             while r_continued_line.search(nextline):
+                breakpoint()
                 self.__line += nextline
                 lookahead_index += 1
                 nextline = linecache.getline(os.path.join(self.infile), lookahead_index)
