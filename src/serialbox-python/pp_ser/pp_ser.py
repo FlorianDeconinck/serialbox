@@ -18,6 +18,7 @@ import re
 import shutil
 import sys
 import tempfile
+from copy import deepcopy
 
 """
 pp_ser.py
@@ -846,7 +847,6 @@ class PpSer:
         return m
 
     def __re_ser_verbatim_arg(self, line: str):
-        pass
         """
         Unfold directives from Fortran code into string
         to add serial args to a function or subroutine
@@ -865,19 +865,22 @@ class PpSer:
                 args = r2.split(m.group(1))[1::2]
                 if args[0].upper() in self.language['verbatim']:
                     newline = ' '.join(r2.split(m.group(1))[1::2][1:]) + '\n'
-                else raise ValueError(
-                    f"Serialbox directive {args[0]} not allowed in call signature"
-                )
+                else:
+                    raise ValueError(
+                        f"Serialbox directive {args[0]} not allowed in call signature"
+                    )
 
             # if this is the first line with !$SER statements, add #ifdef
             if self.ifdef and not self.__ser:
-                newline = '#ifdef ' + self.ifdef + '\n' + line
+                newline = '#ifdef ' + self.ifdef + '\n' + newline
                 self.__ser = True
         else:
             # if this is the first line without !$SER statements, add #endif
             if self.ifdef and self.__ser:
                 newline = '#endif\n' + line
                 self.__ser = False
+            else:
+                newline = line
         return newline
 
     # LINE: subroutine or function
@@ -892,6 +895,10 @@ class PpSer:
         if m and not m_cont:
             self.__produce_use_stmt()
         elif m and m_cont:
+            # Save line to reset after adding the use statement
+            # In case we have to lex the call signature
+            skip_lines = deepcopy(self.__skip_next_n_lines)
+
             # look ahead to find the correct line to insert the use statement
             lookahead_index = self.__linenum + 1
 
@@ -899,13 +906,17 @@ class PpSer:
             nextline = linecache.getline(os.path.join(self.infile), lookahead_index)
             r_continued_line = re.compile('^([^!]*)&|^ *!', re.IGNORECASE)
             while r_continued_line.search(nextline):
-                breakpoint()
+                nextline = self.__re_ser_verbatim_arg(nextline)
                 self.__line += nextline
                 lookahead_index += 1
                 nextline = linecache.getline(os.path.join(self.infile), lookahead_index)
+            nextline = self.__re_ser_verbatim_arg(nextline)
             self.__line += nextline
             self.__skip_next_n_lines = lookahead_index - self.__linenum
             self.__produce_use_stmt()
+
+            # reset skip_lines so we also lex the arguments
+            self.__skip_next_n_lines = skip_lines
         return m
 
     # LINE: !$SER directive
