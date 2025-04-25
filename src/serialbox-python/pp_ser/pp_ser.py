@@ -890,13 +890,11 @@ class PpSer:
         r_cont = re.compile('^ *(subroutine|function)([^!]*)&', re.IGNORECASE)
         m = r.search(self.__line)
         m_cont = r_cont.search(self.__line)
-
         if m and not m_cont:
             self.__produce_use_stmt()
         elif m and m_cont:
             # look ahead to find the correct line to insert the use statement
             lookahead_index = self.__linenum + 1
-
             # look ahead
             nextline = linecache.getline(os.path.join(self.infile), lookahead_index)
             r_continued_line = re.compile('^([^!]*)&|^ *!', re.IGNORECASE)
@@ -909,7 +907,6 @@ class PpSer:
             self.__line += nextline
             self.__skip_next_n_lines = lookahead_index - self.__linenum
             self.__produce_use_stmt()
-
         return m
 
     # LINE: !$SER directive
