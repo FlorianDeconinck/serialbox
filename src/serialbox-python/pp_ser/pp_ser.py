@@ -18,7 +18,6 @@ import re
 import shutil
 import sys
 import tempfile
-from copy import deepcopy
 
 """
 pp_ser.py
@@ -895,10 +894,6 @@ class PpSer:
         if m and not m_cont:
             self.__produce_use_stmt()
         elif m and m_cont:
-            # Save line to reset after adding the use statement
-            # In case we have to lex the call signature
-            skip_lines = deepcopy(self.__skip_next_n_lines)
-
             # look ahead to find the correct line to insert the use statement
             lookahead_index = self.__linenum + 1
 
@@ -915,8 +910,6 @@ class PpSer:
             self.__skip_next_n_lines = lookahead_index - self.__linenum
             self.__produce_use_stmt()
 
-            # reset skip_lines so we also lex the arguments
-            self.__skip_next_n_lines = skip_lines
         return m
 
     # LINE: !$SER directive
