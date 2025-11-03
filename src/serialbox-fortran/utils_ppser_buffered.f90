@@ -131,6 +131,10 @@ SUBROUTINE fs_flush_savepoint(serializer, savepoint)
   idx_d3 = 1
   idx_d4 = 1
 
+  IF (.NOT. (fs_is_serialization_on())) THEN
+    RETURN
+  ENDIF
+
   DO idx = 1, max_buffer
 
     IF ((TRIM(buffers(idx)%savepoint_name) == TRIM(savepoint%savepoint_name))) THEN
