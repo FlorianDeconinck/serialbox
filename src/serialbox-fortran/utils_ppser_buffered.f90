@@ -276,6 +276,7 @@ SUBROUTINE fs_write_buffered_r8(serializer, savepoint, nDims, fieldname, scalar,
   END IF
 
   buffers(buffer_id)%buffered = .TRUE.
+  buffers(buffer_id)%appended = .FALSE.
   buffers(buffer_id)%buffer_r8(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
@@ -437,6 +438,7 @@ SUBROUTINE fs_write_buffered_r4(serializer, savepoint, nDims, fieldname, scalar,
   END IF
 
   buffers(buffer_id)%buffered = .TRUE.
+  buffers(buffer_id)%appended = .FALSE.
   buffers(buffer_id)%buffer_r4(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
@@ -597,6 +599,7 @@ SUBROUTINE fs_write_buffered_i4(serializer, savepoint, nDims, fieldname, scalar,
   END IF
 
   buffers(buffer_id)%buffered = .TRUE.
+  buffers(buffer_id)%appended = .FALSE.
   buffers(buffer_id)%buffer_i4(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
@@ -756,6 +759,7 @@ SUBROUTINE fs_write_buffered_logical(serializer, savepoint, nDims, fieldname, sc
   END IF
 
   buffers(buffer_id)%buffered = .TRUE.
+  buffers(buffer_id)%appended = .FALSE.
   buffers(buffer_id)%buffer_logical(i1,i2,i3,i4) = scalar
   buffers(buffer_id)%ok(i1,i2,i3,i4) = .TRUE.
 
